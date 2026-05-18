@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AFL Championship Manager</title>
+<style>
+:root{--bg:#f5f4f0;--surface:#fff;--s2:#f0efeb;--s3:#e8e6e0;--border:#e0ddd8;--b2:#ccc9c2;--text:#1a1a1a;--t2:#6b6b6b;--t3:#aaa;--green:#1a2e1a;--gl:rgba(26,46,26,0.07);--gb:rgba(26,46,26,0.22);--win:#1a6b2e;--loss:#8b1a1a;--home:#1a3a6b;--away:#8b1a1a;--amber:#b06800;--gold:#b8860b;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:13px;min-height:100vh;}
+.app{max-width:980px;margin:0 auto;padding:.75rem;}
+.topbar{display:flex;align-items:center;justify-content:space-between;background:var(--green);color:#fff;border-radius:12px;padding:.75rem 1.25rem;margin-bottom:1rem;flex-wrap:wrap;gap:8px;}
+.club-title{font-size:16px;font-weight:600;}.round-info{font-size:11px;opacity:.6;margin-top:2px;}
+.nav-tabs{display:flex;gap:4px;flex-wrap:wrap;}
+.nt{padding:5px 10px;border-radius:20px;border:none;background:transparent;color:rgba(255,255,255,.55);cursor:pointer;font-size:11px;font-weight:500;transition:all .15s;}
+.nt.active,.nt:hover{color:#fff;}.nt.active{background:rgba(255,255,255,.18);}
+.screen{display:none;}.screen.active{display:block;}
+.card{background:var(--surface);border:.5px solid var(--border);border-radius:12px;padding:1rem 1.25rem;margin-bottom:.875rem;}
+.card h3{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--t2);margin-bottom:.75rem;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:.875rem;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;}
+.btn{padding:8px 16px;border:.5px solid var(--b2);border-radius:8px;background:var(--surface);cursor:pointer;font-size:12px;font-weight:500;color:var(--text);transition:all .15s;}
+.btn:hover{background:var(--s2);}.btn.primary{background:var(--green);color:#fff;border-color:var(--green);}.btn.primary:hover{opacity:.88;}
+.btn.danger{background:var(--loss);color:#fff;border-color:var(--loss);}.btn.sm{padding:5px 10px;font-size:11px;}.btn:disabled{opacity:.3;cursor:not-allowed;}
+.metric{background:var(--s2);border-radius:8px;padding:.75rem;text-align:center;}
+.metric .mv{font-size:22px;font-weight:600;margin-top:3px;}.metric .ml{font-size:11px;color:var(--t2);}
+.ob{display:inline-flex;align-items:center;justify-content:center;width:32px;height:22px;border-radius:5px;font-size:11px;font-weight:600;color:#fff;}
+.ob-e{background:#1a6b2e;}.ob-g{background:#1a3a6b;}.ob-a{background:#7a7a7a;}.ob-l{background:#aaa;}
+.ptable{width:100%;border-collapse:collapse;font-size:12px;}
+.ptable th{text-align:left;padding:5px 7px;color:var(--t2);font-weight:500;border-bottom:.5px solid var(--border);white-space:nowrap;font-size:11px;}
+.ptable td{padding:5px 7px;border-bottom:.5px solid var(--border);}
+.ptable tr:last-child td{border-bottom:none;}.ptable tr:hover td{background:var(--s2);}
+.pb{font-size:10px;background:var(--s2);padding:2px 5px;border-radius:4px;color:var(--t2);}
+.ts-star{font-size:10px;color:#c49a00;}
+.sb{background:#1a1a1a;color:#fff;border-radius:12px;padding:1.25rem;margin-bottom:.75rem;}
+.sb-t{display:flex;justify-content:space-between;align-items:center;}
+.sb-side{flex:1;text-align:center;}.sb-side .tn{font-size:12px;opacity:.6;margin-bottom:4px;}
+.sb-side .sc{font-size:38px;font-weight:600;font-variant-numeric:tabular-nums;}.sb-side .sg{font-size:12px;opacity:.5;margin-top:2px;}
+.sb-div{font-size:16px;opacity:.3;padding:0 1rem;}
+.sb-q{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:1rem;}
+.sq-c{background:rgba(255,255,255,.07);border-radius:6px;padding:6px;text-align:center;}
+.sq-c .ql{font-size:10px;opacity:.5;}.sq-c .qs{font-size:11px;margin-top:2px;}
+.sb-st{text-align:center;font-size:11px;opacity:.5;margin-top:.75rem;}
+.ml-grid{display:grid;grid-template-columns:1fr 270px;gap:.75rem;}
+.feed-box{background:var(--surface);border:.5px solid var(--border);border-radius:12px;padding:.75rem;}
+.fh-l{font-size:11px;color:var(--t2);text-transform:uppercase;letter-spacing:.05em;display:flex;align-items:center;gap:5px;margin-bottom:6px;}
+.live-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#e24b4a;animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+.feed-scroll{height:300px;overflow-y:auto;}
+.feed-ev{display:flex;gap:8px;padding:4px 0;border-bottom:.5px solid var(--border);line-height:1.5;}
+.feed-ev:last-child{border-bottom:none;}
+.feed-t{font-size:10px;color:var(--t2);min-width:38px;padding-top:2px;}
+.feed-txt{flex:1;font-size:12px;}
+.feed-ev.goal-h .feed-txt{color:var(--home);font-weight:600;}
+.feed-ev.goal-a .feed-txt{color:var(--away);font-weight:600;}
+.feed-ev.qev{background:var(--s2);border-radius:6px;padding:4px 8px;margin:3px 0;}
+.feed-ev.qev .feed-txt{color:var(--t2);font-size:11px;font-weight:600;}
+.feed-ev.behind-h .feed-txt{color:#2a5aad;}.feed-ev.behind-a .feed-txt{color:#ad2a2a;}
+.sr{display:flex;align-items:center;gap:5px;margin-bottom:5px;}
+.sv{font-size:12px;font-weight:600;min-width:22px;text-align:center;}
+.sv.h{color:var(--home);}.sv.a{color:var(--away);}
+.sbar{flex:1;height:4px;background:var(--s2);border-radius:2px;overflow:hidden;display:flex;}
+.sbh{height:100%;background:var(--home);}.sba{height:100%;background:var(--away);}
+.other-scores{background:var(--s2);border-radius:8px;padding:.75rem;margin-top:.75rem;}
+.other-scores h4{font-size:11px;color:var(--t2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem;}
+.score-row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:.5px solid var(--border);font-size:11px;}
+.score-row:last-child{border-bottom:none;}
+.xp-bonus-panel{background:var(--gl);border:.5px solid var(--gb);border-radius:10px;padding:.875rem;margin-top:.875rem;}
+.xp-bonus-panel h4{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--win);margin-bottom:.5rem;}
+.xp-bonus-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:.5px solid rgba(26,46,26,.1);font-size:12px;}
+.xp-bonus-row:last-child{border-bottom:none;}
+.xp-pill{background:var(--win);color:#fff;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:600;}
+.sel-layout{display:grid;grid-template-columns:1fr 250px;gap:1rem;}
+.pos-group{margin-bottom:1rem;}
+.pos-group-hdr{display:flex;align-items:center;justify-content:space-between;padding:5px 10px;background:var(--s2);border-radius:8px;margin-bottom:4px;}
+.pg-label{font-size:12px;font-weight:600;}.pg-quota{font-size:11px;color:var(--t2);}
+.pg-quota.ok{color:var(--win);font-weight:600;}.pg-quota.over{color:var(--loss);font-weight:600;}
+.sel-row{display:flex;align-items:center;gap:8px;padding:4px 8px;border:.5px solid var(--border);border-radius:7px;margin-bottom:3px;background:var(--surface);cursor:pointer;transition:all .12s;user-select:none;}
+.sel-row:hover{border-color:var(--b2);}.sel-row.ss{border-color:var(--green);background:var(--gl);}
+.sel-row.sb2{border-color:var(--amber);background:rgba(176,104,0,.05);}
+.sel-check{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--b2);display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;}
+.sel-row.ss .sel-check{background:var(--green);color:#fff;border-color:var(--green);}
+.sel-row.sb2 .sel-check{background:var(--amber);color:#fff;border-color:var(--amber);}
+.sel-name{flex:1;font-size:12px;font-weight:500;}
+.sel-tag{font-size:10px;padding:1px 5px;border-radius:4px;white-space:nowrap;}
+.sel-tag.starter{background:var(--gl);color:var(--green);}.sel-tag.bench{background:rgba(176,104,0,.1);color:var(--amber);}
+.panel-bar{background:var(--green);color:#fff;border-radius:8px 8px 0 0;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;}
+.panel-bar .pcount{font-size:13px;font-weight:600;}
+.panel-slots{background:var(--surface);border:.5px solid var(--border);border-top:none;border-radius:0 0 12px 12px;padding:.4rem 0;margin-bottom:.75rem;}
+.panel-section{padding:2px 10px;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--t2);margin-top:4px;}
+.panel-slot{display:flex;align-items:center;gap:6px;padding:2px 10px;font-size:11px;border-bottom:.5px solid var(--border);}
+.panel-slot:last-child{border-bottom:none;}.ps-pos{min-width:28px;color:var(--t2);font-size:10px;}
+.ps-name{flex:1;}.ps-name.empty{color:var(--b2);font-style:italic;}.ps-ovr{font-size:10px;color:var(--t2);}
+.bench-bar{background:var(--amber);color:#fff;padding:4px 12px;font-size:11px;font-weight:600;margin-top:.4rem;}
+.delist-btn{padding:2px 8px;font-size:11px;border:.5px solid var(--loss);border-radius:6px;background:transparent;color:var(--loss);cursor:pointer;}
+.delist-btn:hover{background:var(--loss);color:#fff;}
+.tac-section{margin-bottom:1.25rem;}
+.tac-section h4{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--t2);margin-bottom:.6rem;}
+.tac-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:.75rem;}
+.tac-grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
+.tc{padding:.75rem;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);transition:all .15s;}
+.tc.sel{border-color:var(--green);background:var(--gl);}
+.tc h4{font-size:12px;font-weight:600;margin-bottom:2px;color:var(--text);}
+.tc p{font-size:11px;color:var(--t2);line-height:1.35;}
+.tac-badge{display:inline-block;font-size:9px;padding:1px 5px;border-radius:4px;margin-top:3px;font-weight:600;}
+.tac-badge.atk{background:rgba(26,46,26,.1);color:#1a4a1a;}
+.tac-badge.def{background:rgba(26,58,107,.1);color:var(--home);}
+.tac-badge.bal{background:rgba(176,104,0,.1);color:var(--amber);}
+.sl-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.sl-row label{font-size:11px;color:var(--t2);min-width:140px;}
+.sl-row .sv2{font-size:12px;font-weight:600;min-width:30px;text-align:right;}
+.xp-ban{background:var(--gl);border:.5px solid var(--gb);border-radius:8px;padding:8px 12px;margin-bottom:.875rem;display:flex;align-items:center;justify-content:space-between;font-size:12px;}
+.tp-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:.5px solid var(--border);}
+.tp-row:last-child{border-bottom:none;}
+.fsel{font-size:11px;padding:3px 6px;border:.5px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);cursor:pointer;}
+.xb{width:22px;height:22px;border-radius:50%;border:.5px solid var(--b2);background:var(--surface);cursor:pointer;font-size:14px;display:inline-flex;align-items:center;justify-content:center;}
+.xb:hover{background:var(--green);color:#fff;border-color:var(--green);}
+.lt{width:100%;border-collapse:collapse;font-size:12px;}
+.lt th{text-align:left;padding:5px 7px;color:var(--t2);font-weight:500;border-bottom:.5px solid var(--border);}
+.lt td{padding:5px 7px;border-bottom:.5px solid var(--border);}
+.lt tr.me td{background:var(--gl);font-weight:600;}.lt tr.me td:first-child{color:var(--green);}
+.pdot{width:20px;height:20px;border-radius:50%;background:var(--s2);display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;}
+.pdot.f{background:var(--green);color:#fff;}
+.fr{display:flex;align-items:center;gap:8px;padding:6px 10px;border:.5px solid var(--border);border-radius:8px;background:var(--surface);margin-bottom:4px;}
+.fr.cur{border-color:var(--green);border-width:1.5px;}
+.result.win{color:var(--win);font-weight:600;}.result.loss{color:var(--loss);font-weight:600;}
+.tabs{display:flex;gap:6px;margin-bottom:.875rem;flex-wrap:wrap;}
+.tab{padding:4px 12px;border:.5px solid var(--border);border-radius:20px;background:var(--surface);cursor:pointer;font-size:11px;font-weight:500;color:var(--t2);}
+.tab.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a;}
+.rstrip{display:flex;justify-content:space-between;padding:4px 0;border-bottom:.5px solid var(--border);font-size:12px;}
+.finals-bracket{display:flex;flex-direction:column;gap:1rem;}
+.finals-week{border:.5px solid var(--border);border-radius:8px;padding:.875rem;background:var(--surface);}
+.finals-week h4{font-size:12px;font-weight:600;margin-bottom:.5rem;color:var(--t2);text-transform:uppercase;letter-spacing:.05em;}
+.finals-matchup{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:.5px solid var(--border);}
+.finals-matchup:last-child{border-bottom:none;}.fm-teams{flex:1;font-size:13px;}
+.fm-result.win{color:var(--win);font-weight:600;}.fm-result.loss{color:var(--loss);font-weight:600;}
+.fm-my{background:var(--gl);border-radius:6px;padding:2px 6px;font-size:11px;}
+.draft-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:1rem;}
+.draft-card{border:.5px solid var(--border);border-radius:8px;padding:.75rem;background:var(--surface);cursor:pointer;transition:all .15s;}
+.draft-card:hover{border-color:var(--green);}.draft-card.picked{opacity:.5;cursor:default;}
+.draft-card.selected{border-color:var(--win);border-width:2px;background:rgba(26,107,46,.08);}
+.season-summary{text-align:center;padding:2rem 1rem;}
+.season-summary h2{font-size:28px;font-weight:700;margin-bottom:.5rem;}
+.club-sel-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.25rem;}
+.club-card{border:1.5px solid var(--border);border-radius:10px;padding:.875rem;cursor:pointer;background:var(--surface);transition:all .15s;text-align:center;}
+.club-card:hover{border-color:var(--b2);background:var(--s2);}
+.club-card.selected{border-color:var(--green);background:var(--gl);border-width:2px;}
+.club-card .cn{font-size:13px;font-weight:600;margin-bottom:2px;}
+.club-card .ck{font-size:11px;color:var(--t2);}
+.club-card .co{font-size:11px;color:var(--t2);margin-top:3px;}
+.stats-leader-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:.5px solid var(--border);font-size:12px;}
+.stats-leader-row:last-child{border-bottom:none;}
+.stats-rank{font-size:11px;color:var(--t2);min-width:20px;}
+.stats-name{flex:1;}
+.stats-val{font-weight:600;min-width:36px;text-align:right;}
+.gold-badge{display:inline-block;background:#b8860b;color:#fff;border-radius:20px;padding:2px 7px;font-size:10px;font-weight:600;margin-left:5px;}
+.award-card{border:.5px solid var(--border);border-radius:10px;padding:.875rem;background:var(--surface);margin-bottom:.75rem;display:flex;align-items:center;gap:12px;}
+.award-icon{font-size:24px;width:40px;text-align:center;flex-shrink:0;}
+.award-info{flex:1;}
+.award-name{font-size:13px;font-weight:600;}
+.award-winner{font-size:12px;color:var(--t2);margin-top:2px;}
+.award-xp{background:var(--win);color:#fff;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;}
+.award-mine{border-color:var(--gold);background:rgba(184,134,11,.07);}
+@media(max-width:650px){.ml-grid,.g2,.sel-layout,.g3{grid-template-columns:1fr;}.g4{grid-template-columns:1fr 1fr;}.draft-grid{grid-template-columns:1fr 1fr;}.tac-grid{grid-template-columns:1fr 1fr;}.club-sel-grid{grid-template-columns:1fr 1fr;}}
+
+/* ADMIN */
+.admin-player-row{display:flex;align-items:center;gap:10px;padding:7px 10px;border-bottom:.5px solid var(--border);cursor:pointer;transition:background .1s;}
+.admin-player-row:hover{background:var(--s2);}
+.admin-player-row:last-child{border-bottom:none;}
+.ed-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:.75rem;}
+.ed-attr{display:flex;flex-direction:column;gap:3px;}
+.ed-attr label{font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.05em;}
+.ed-attr input[type=range]{width:100%;}
+.ed-attr .ed-val{font-size:12px;font-weight:600;text-align:right;}
+.admin-toast{position:fixed;bottom:1.5rem;right:1.5rem;background:#1a2e1a;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:500;opacity:0;transition:opacity .3s;pointer-events:none;z-index:999;}
+
+.admin-player-row{display:flex;align-items:center;gap:10px;padding:7px 10px;border-bottom:.5px solid var(--border);cursor:pointer;transition:background .1s;}.admin-player-row:hover{background:var(--s2);}.admin-player-row:last-child{border-bottom:none;}.ed-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:.75rem;}.ed-attr{display:flex;flex-direction:column;gap:3px;}.ed-attr label{font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.05em;}.ed-attr input[type=range]{width:100%;}.ed-attr .ed-val{font-size:12px;font-weight:600;text-align:right;}.admin-toast{position:fixed;bottom:1.5rem;right:1.5rem;background:#1a2e1a;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:500;opacity:0;transition:opacity .3s;pointer-events:none;z-index:999;}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="topbar">
+  <div><div class="club-title" id="tb-club">AFL Championship Manager</div><div class="round-info" id="tb-info">Select your club to begin</div></div>
+  <div class="nav-tabs" id="nav-bar" style="display:none;">
+    <button class="nt active" onclick="nav('hub')">Hub</button>
+    <button class="nt" onclick="nav('squad')">Squad</button>
+    <button class="nt" onclick="nav('stats')">Stats</button>
+    <button class="nt" onclick="nav('tactics')">Tactics</button>
+    <button class="nt" onclick="nav('training')">Training</button>
+    <button class="nt" onclick="nav('fixture')">Fixture</button>
+    <button class="nt" onclick="nav('ladder')">Ladder</button>
+    <button class="nt" onclick="openAdmin()" style="background:rgba(255,255,255,.08);">&#9998; Admin</button>
+  </div>
+</div>
+<!-- CLUB SELECTION -->
+<div id="sc-clubsel" class="screen active">
+  <div class="card">
+    <h3>Choose your club — 2026 season</h3>
+    <p style="font-size:12px;color:var(--t2);margin-bottom:1rem;">Each club has their own real 2025 roster. Pick the team you want to manage.</p>
+    <div class="club-sel-grid" id="club-sel-grid"></div>
+    <button class="btn primary" id="btn-start-season" onclick="startWithClub()" disabled>Start Season →</button>
+  </div>
+</div>
+<!-- HUB -->
+<div id="sc-hub" class="screen">
+  <div class="g4" style="margin-bottom:.875rem;">
+    <div class="metric"><div class="ml">Round</div><div class="mv" id="h-rnd">0/22</div></div>
+    <div class="metric"><div class="ml">Record</div><div class="mv" id="h-wld">0-0-0</div></div>
+    <div class="metric"><div class="ml">Position</div><div class="mv" id="h-pos">-</div></div>
+    <div class="metric"><div class="ml">Bonus XP</div><div class="mv" id="h-xp" style="color:var(--win);">15</div></div>
+  </div>
+  <div class="g2">
+    <div class="card"><h3>Next match</h3><div id="h-next" style="font-size:14px;font-weight:600;margin-bottom:4px;">-</div><div id="h-venue" style="font-size:11px;color:var(--t2);margin-bottom:4px;"></div><div id="h-ovr" style="font-size:11px;color:var(--t2);margin-bottom:1rem;"></div><button class="btn primary" id="h-play" onclick="goToSelection()">Select Team &amp; Play</button></div>
+    <div class="card"><h3>Recent results</h3><div id="h-res"><span style="color:var(--t2);font-size:12px;">No matches yet.</span></div></div>
+  </div>
+  <div id="awards-hub-wrap" style="display:none;" class="card"><h3>Awards cabinet</h3><div id="awards-hub-list"></div></div>
+  <div style="margin-top:.5rem;text-align:right;"><button class="btn danger sm" onclick="resetGame()">Change Club / Reset</button></div>
+</div>
+<!-- SQUAD -->
+<div id="sc-squad" class="screen">
+  <div class="tabs">
+    <button class="tab active" onclick="sqFilter('ALL')">All</button>
+    <button class="tab" onclick="sqFilter('MID')">Midfielders</button>
+    <button class="tab" onclick="sqFilter('FWD')">Forwards</button>
+    <button class="tab" onclick="sqFilter('DEF')">Defenders</button>
+    <button class="tab" onclick="sqFilter('RUC')">Rucks</button>
+    <button class="tab" onclick="sqFilter('MF')">Mid-Fwd</button>
+  </div>
+  <div style="font-size:11px;color:var(--t2);margin-bottom:.75rem;" id="squad-count"></div>
+  <div class="card" style="padding:.5rem;"><div style="overflow-x:auto;"><table class="ptable" id="sq-table"></table></div></div>
+</div>
+<!-- STATS -->
+<div id="sc-stats" class="screen">
+  <div class="tabs">
+    <button class="tab active" onclick="statsTab('my')">My Squad</button>
+    <button class="tab" onclick="statsTab('goals')">Goals</button>
+    <button class="tab" onclick="statsTab('disposals')">Disposals</button>
+    <button class="tab" onclick="statsTab('marks')">Marks</button>
+    <button class="tab" onclick="statsTab('tackles')">Tackles</button>
+  </div>
+  <div id="stats-content"></div>
+</div>
+<!-- SELECTION -->
+<div id="sc-selection" class="screen">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:.875rem;">
+    <button class="btn sm" onclick="nav('hub')">&#8592; Hub</button>
+    <div><div style="font-size:15px;font-weight:600;" id="sel-title">Select Team</div><div style="font-size:11px;color:var(--t2);" id="sel-subtitle"></div></div>
+  </div>
+  <div style="display:flex;gap:12px;margin-bottom:.75rem;font-size:11px;flex-wrap:wrap;">
+    <span>Click once = Starter &nbsp;|&nbsp; Twice = Bench &nbsp;|&nbsp; Three times = Remove</span>
+  </div>
+  <div class="sel-layout">
+    <div id="sel-player-list"></div>
+    <div><div style="position:sticky;top:0;">
+      <div class="panel-bar"><span class="pcount" id="sel-count">0 selected</span><span style="font-size:11px;opacity:.7;" id="sel-bench-count">Bench: 0/4</span></div>
+      <div class="panel-slots" id="sel-panel-slots"></div>
+      <div id="sel-errors" style="margin-bottom:.75rem;font-size:11px;color:var(--loss);min-height:18px;"></div>
+      <button class="btn primary" id="sel-confirm" onclick="confirmSelection()" style="width:100%;" disabled>Confirm &amp; play &#8594;</button>
+      <button class="btn sm" onclick="autoSelect()" style="width:100%;margin-top:6px;">Auto-select best 22</button>
+    </div></div>
+  </div>
+</div>
+<!-- TACTICS -->
+<div id="sc-tactics" class="screen">
+  <div class="card">
+    <div class="tac-section"><h4>Overall style</h4><div class="tac-grid">
+      <div class="tc sel" id="tc-attack" onclick="selTac('style','attack')"><h4>Attack</h4><p>High press, run &amp; gun</p><span class="tac-badge atk">+atk +speed</span></div>
+      <div class="tc" id="tc-balanced" onclick="selTac('style','balanced')"><h4>Balanced</h4><p>Structure with intent</p><span class="tac-badge bal">+versatile</span></div>
+      <div class="tc" id="tc-defensive" onclick="selTac('style','defensive')"><h4>Defensive</h4><p>Pack the arc, grind</p><span class="tac-badge def">+def +tackle</span></div>
+    </div></div>
+    <div class="tac-section"><h4>Forward setup</h4><div class="tac-grid">
+      <div class="tc sel" id="tc-fwd-press" onclick="selTac('fwd','press')"><h4>Forward press</h4><p>Pressure high up the ground</p><span class="tac-badge atk">+i50 +shots</span></div>
+      <div class="tc" id="tc-fwd-hold" onclick="selTac('fwd','hold')"><h4>Hold the line</h4><p>Stay in position, take leads</p><span class="tac-badge bal">+marks +accuracy</span></div>
+      <div class="tc" id="tc-fwd-zone" onclick="selTac('fwd','zone')"><h4>Zone forward</h4><p>Flood the forward arc</p><span class="tac-badge def">+defensive rebound</span></div>
+    </div></div>
+    <div class="tac-section"><h4>Defensive setup</h4><div class="tac-grid">
+      <div class="tc" id="tc-def-man" onclick="selTac('def','man')"><h4>Man-on-man</h4><p>Tight tagging, shadow marking</p><span class="tac-badge def">+intercept +tackle</span></div>
+      <div class="tc sel" id="tc-def-zone" onclick="selTac('def','zone')"><h4>Zone defence</h4><p>Cover space, flood the arc</p><span class="tac-badge bal">+spoil +block</span></div>
+      <div class="tc" id="tc-def-press" onclick="selTac('def','press')"><h4>Defensive press</h4><p>Win it back immediately</p><span class="tac-badge atk">+clearance +contest</span></div>
+    </div></div>
+    <div class="tac-section"><h4>Midfield rotation</h4><div class="tac-grid">
+      <div class="tc sel" id="tc-mid-rotate" onclick="selTac('mid','rotate')"><h4>Rotate freely</h4><p>Share load across all mids</p><span class="tac-badge bal">+stamina +spread</span></div>
+      <div class="tc" id="tc-mid-lock" onclick="selTac('mid','lock')"><h4>Lock in stars</h4><p>Best mid touches ball most</p><span class="tac-badge atk">+disposals +goals</span></div>
+      <div class="tc" id="tc-mid-spread" onclick="selTac('mid','spread')"><h4>Defensive spread</h4><p>Mids join defensive structure</p><span class="tac-badge def">+tackles +blocks</span></div>
+    </div></div>
+    <div class="tac-section"><h4>Ruck strategy</h4><div class="tac-grid-2">
+      <div class="tc sel" id="tc-ruc-contest" onclick="selTac('ruc','contest')"><h4>Contest every tap</h4><p>Win hitout, dominate clearances</p><span class="tac-badge atk">+hitouts +clearance</span></div>
+      <div class="tc" id="tc-ruc-roam" onclick="selTac('ruc','roam')"><h4>Ruck roams</h4><p>Extra body in attack &amp; defence</p><span class="tac-badge bal">+versatility</span></div>
+    </div></div>
+    <div class="tac-section"><h4>Advanced sliders</h4>
+      <div class="sl-row"><label>Kick-handball ratio</label><input type="range" min="0" max="100" value="50" id="sl-kick" oninput="document.getElementById('sv-kick').textContent=this.value+'%'"><span class="sv2" id="sv-kick">50%</span></div>
+      <div class="sl-row"><label>Press intensity</label><input type="range" min="0" max="100" value="60" id="sl-press" oninput="document.getElementById('sv-press').textContent=this.value"><span class="sv2" id="sv-press">60</span></div>
+      <div class="sl-row"><label>Risk in attack</label><input type="range" min="0" max="100" value="50" id="sl-risk" oninput="document.getElementById('sv-risk').textContent=this.value"><span class="sv2" id="sv-risk">50</span></div>
+      <div class="sl-row"><label>Man-on-man intensity</label><input type="range" min="0" max="100" value="40" id="sl-man" oninput="document.getElementById('sv-man').textContent=this.value"><span class="sv2" id="sv-man">40</span></div>
+    </div>
+  </div>
+  <div style="text-align:right;"><button class="btn primary" onclick="saveTac()">Save Tactics</button></div>
+</div>
+<!-- TRAINING -->
+<div id="sc-training" class="screen">
+  <div class="xp-ban"><span>Bonus XP: <strong id="xp-disp">15</strong> &nbsp;|&nbsp; +5 per round &nbsp;|&nbsp; Performance bonuses after each match</span><button class="btn sm" onclick="nav('hub')">&#8592; Hub</button></div>
+  <div class="card" style="padding:.5rem .75rem;"><div id="tr-list"></div></div>
+</div>
+<!-- FIXTURE -->
+<div id="sc-fixture" class="screen"><div class="card"><h3 id="fix-title">Season Fixture</h3><div id="fix-list"></div></div></div>
+<!-- LADDER -->
+<div id="sc-ladder" class="screen"><div class="card"><h3>AFL Ladder</h3><table class="lt" id="lad-table"></table></div></div>
+<!-- MATCH -->
+<div id="sc-match" class="screen">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:.75rem;flex-wrap:wrap;">
+    <button class="btn sm" onclick="nav('hub')">&#8592; Hub</button>
+    <span id="m-lbl" style="font-size:12px;color:var(--t2);"></span>
+  </div>
+  <div class="sb">
+    <div class="sb-t">
+      <div class="sb-side"><div class="tn" id="m-hn">-</div><div class="sc" id="m-hs">0</div><div class="sg" id="m-hg">0.0</div></div>
+      <div class="sb-div">·</div>
+      <div class="sb-side"><div class="tn" id="m-an">-</div><div class="sc" id="m-as">0</div><div class="sg" id="m-ag">0.0</div></div>
+    </div>
+    <div class="sb-q">
+      <div class="sq-c"><div class="ql">Q1</div><div class="qs" id="mq1">-</div></div>
+      <div class="sq-c"><div class="ql">Q2</div><div class="qs" id="mq2">-</div></div>
+      <div class="sq-c"><div class="ql">Q3</div><div class="qs" id="mq3">-</div></div>
+      <div class="sq-c"><div class="ql">Q4</div><div class="qs" id="mq4">-</div></div>
+    </div>
+    <div class="sb-st" id="m-status">Not started</div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;">
+    <button class="btn primary" id="btn-qtr" onclick="simNextQtr()">Simulate Quarter</button>
+    <button class="btn" id="btn-full" onclick="simFull()">Sim Full Match</button>
+    <button class="btn" id="btn-skip" onclick="skipFeed()" style="display:none;">Skip to end</button>
+    <button class="btn" id="btn-pg" onclick="showPG()" style="display:none;margin-left:auto;">Player Stats &#8594;</button>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:.75rem;">
+    <label style="font-size:11px;color:var(--t2);">Speed:</label>
+    <input type="range" min="1" max="5" value="2" step="1" id="speed-sl" style="width:80px;">
+    <span style="font-size:11px;font-weight:600;min-width:60px;" id="speed-lbl">Slow</span>
+  </div>
+  <div class="ml-grid">
+    <div class="feed-box">
+      <div class="fh-l"><span class="live-dot" id="live-dot" style="display:none;"></span>Match feed</div>
+      <div class="feed-scroll" id="feed-scroll"><div id="feed-events"></div></div>
+    </div>
+    <div>
+      <div class="card" style="padding:.75rem;margin-bottom:.75rem;"><h3>Team stats</h3><div id="m-stats"></div></div>
+      <div class="card" style="padding:.75rem;"><div class="g2" id="m-met" style="gap:6px;"></div></div>
+    </div>
+  </div>
+  <div id="other-scores-wrap" style="display:none;"><div class="other-scores"><h4>Other results — Round <span id="other-round-num"></span></h4><div id="other-scores-list"></div></div></div>
+</div>
+<!-- POST GAME -->
+<div id="sc-postgame" class="screen">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:.75rem;">
+    <button class="btn sm" onclick="nav('hub')">&#8592; Hub</button>
+    <span id="pg-lbl" style="font-size:13px;font-weight:600;"></span>
+  </div>
+  <div class="card" style="padding:.5rem;"><div style="overflow-x:auto;"><table class="ptable" id="pg-table"></table></div></div>
+  <div id="xp-bonus-wrap" style="display:none;">
+    <div class="xp-bonus-panel"><h4>Performance XP Bonuses</h4><div id="xp-bonus-list"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:.75rem;padding-top:.75rem;border-top:.5px solid rgba(26,46,26,.15);">
+        <span style="font-size:12px;font-weight:600;">Total bonus XP:</span><span class="xp-pill" id="xp-bonus-total">+0</span>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- FINALS -->
+<div id="sc-finals" class="screen">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+    <h2 style="font-size:20px;font-weight:700;">AFL Finals Series</h2>
+    <button class="btn sm" onclick="nav('hub')">&#8592; Hub</button>
+  </div>
+  <div id="finals-bracket-wrap"></div>
+  <div id="finals-action" style="margin-top:1rem;"></div>
+</div>
+<!-- AWARDS -->
+<div id="sc-awards" class="screen">
+  <div style="text-align:center;margin-bottom:1.5rem;">
+    <div style="font-size:36px;margin-bottom:.5rem;">&#127942;</div>
+    <h2 style="font-size:22px;font-weight:700;" id="awards-title">Season Awards</h2>
+    <p style="font-size:13px;color:var(--t2);" id="awards-subtitle"></p>
+  </div>
+  <div id="awards-list"></div>
+  <div id="awards-xp-summary" style="margin:1rem 0;"></div>
+  <button class="btn primary" style="width:100%;" onclick="goToPostseason()">Continue to post-season &#8594;</button>
+</div>
+<!-- POST-SEASON -->
+<div id="sc-postseason" class="screen">
+  <div class="season-summary">
+    <div id="ps-trophy" style="font-size:48px;margin-bottom:.5rem;"></div>
+    <h2 id="ps-title">Season Over</h2>
+    <p id="ps-subtitle" style="color:var(--t2);margin-bottom:1.5rem;"></p>
+    <div id="ps-stats" style="margin-bottom:1.5rem;"></div>
+    <button class="btn primary" onclick="startPreseason()">Begin Pre-season &amp; Draft &#8594;</button>
+  </div>
+</div>
+<!-- DRAFT -->
+<div id="sc-draft" class="screen">
+  <div style="margin-bottom:1rem;"><h2 style="font-size:20px;font-weight:700;margin-bottom:4px;">Rookie Draft</h2><p style="font-size:12px;color:var(--t2);">Select 2 rookies for your list.</p></div>
+  <div style="background:var(--gl);border:.5px solid var(--gb);border-radius:8px;padding:8px 12px;margin-bottom:1rem;font-size:12px;" id="draft-status"></div>
+  <div class="draft-grid" id="draft-grid"></div>
+  <button class="btn primary" id="draft-confirm" onclick="confirmDraft()" disabled>Confirm picks &amp; start Season <span id="next-season-yr">2026</span></button>
+</div>
+
+<!-- ADMIN -->
+<div id="sc-admin" class="screen">
+  <div id="admin-toast" class="admin-toast">Saved</div>
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem;flex-wrap:wrap;">
+    <button class="btn sm" onclick="nav('squad')">&#8592; Back</button>
+    <h2 style="font-size:18px;font-weight:700;flex:1;">Admin &mdash; Player Editor</h2>
+    <button class="btn sm primary" onclick="addNewPlayer()">+ Add Player</button>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:.75rem;flex-wrap:wrap;">
+    <input id="admin-search" type="text" placeholder="Search player..." style="padding:6px 10px;border:.5px solid var(--border);border-radius:8px;font-size:12px;flex:1;min-width:120px;background:var(--surface);color:var(--text);" oninput="renderAdminList()">
+    <select id="admin-pos-filter" class="fsel" style="padding:6px 10px;font-size:12px;" onchange="renderAdminList()">
+      <option value="ALL">All positions</option>
+      <option value="MID">Midfielder</option>
+      <option value="FWD">Forward</option>
+      <option value="DEF">Defender</option>
+      <option value="RUC">Ruck</option>
+      <option value="MF">Mid-Forward</option>
+    </select>
+  </div>
+  <div class="card" style="padding:.5rem;margin-bottom:.875rem;">
+    <div id="admin-player-list"></div>
+  </div>
+  <div id="admin-edit-panel" class="card" style="display:none;border-color:var(--green);border-width:1.5px;">
+    <h3 style="margin-bottom:.875rem;">Edit Player</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:.875rem;">
+      <div><label style="font-size:10px;color:var(--t2);display:block;margin-bottom:3px;">Name</label><input id="ed-name" type="text" style="width:100%;padding:6px 8px;border:.5px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);"></div>
+      <div><label style="font-size:10px;color:var(--t2);display:block;margin-bottom:3px;">Position</label>
+        <select id="ed-pos" class="fsel" style="width:100%;padding:6px 8px;">
+          <option value="MID">Midfielder</option><option value="FWD">Forward</option><option value="DEF">Defender</option><option value="RUC">Ruck</option><option value="MF">Mid-Forward</option>
+        </select>
+      </div>
+      <div><label style="font-size:10px;color:var(--t2);display:block;margin-bottom:3px;">Tier</label>
+        <select id="ed-tier" class="fsel" style="width:100%;padding:6px 8px;">
+          <option value="1">&#9733; Developing</option><option value="2">&#9733;&#9733; Quality</option><option value="3">&#9733;&#9733;&#9733; Elite</option>
+        </select>
+      </div>
+    </div>
+    <div class="ed-row">
+      <div class="ed-attr"><label>Speed</label><input id="ed-speed" type="range" min="40" max="99" oninput="document.getElementById('edv-speed').textContent=this.value;updateEditOVR()"><div class="ed-val" id="edv-speed">70</div></div>
+      <div class="ed-attr"><label>Skill</label><input id="ed-skill" type="range" min="40" max="99" oninput="document.getElementById('edv-skill').textContent=this.value;updateEditOVR()"><div class="ed-val" id="edv-skill">70</div></div>
+      <div class="ed-attr"><label>Attack</label><input id="ed-attack" type="range" min="40" max="99" oninput="document.getElementById('edv-attack').textContent=this.value;updateEditOVR()"><div class="ed-val" id="edv-attack">70</div></div>
+      <div class="ed-attr"><label>Defence</label><input id="ed-defence" type="range" min="40" max="99" oninput="document.getElementById('edv-defence').textContent=this.value;updateEditOVR()"><div class="ed-val" id="edv-defence">70</div></div>
+      <div class="ed-attr"><label>Contest</label><input id="ed-contest" type="range" min="40" max="99" oninput="document.getElementById('edv-contest').textContent=this.value;updateEditOVR()"><div class="ed-val" id="edv-contest">70</div></div>
+      <div class="ed-attr"><label>Physicality</label><input id="ed-physicality" type="range" min="40" max="99" oninput="document.getElementById('edv-physicality').textContent=this.value;updateEditOVR()"><div class="ed-val" id="edv-physicality">70</div></div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:.5rem;">
+      <div id="ed-ovr-display" style="font-size:14px;font-weight:600;color:var(--green);">Overall: 70</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn sm" onclick="cancelEdit()">Cancel</button>
+        <button class="btn sm primary" onclick="saveEditPlayer()">Save &#10003;</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+const CLUBS=[{id:'ADE',name:'Adelaide',nick:'Crows',home:'Adelaide Oval',colour:'#002B5C'},{id:'BRL',name:'Brisbane',nick:'Lions',home:'The Gabba',colour:'#a30046'},{id:'CAR',name:'Carlton',nick:'Blues',home:'Marvel Stadium',colour:'#002f6c'},{id:'COL',name:'Collingwood',nick:'Magpies',home:'MCG',colour:'#1a1a1a'},{id:'ESS',name:'Essendon',nick:'Bombers',home:'Marvel Stadium',colour:'#CC2031'},{id:'FRE',name:'Fremantle',nick:'Dockers',home:'Optus Stadium',colour:'#2C1A5D'},{id:'GEE',name:'Geelong',nick:'Cats',home:'GMHBA Stadium',colour:'#1D4E8F'},{id:'GCS',name:'Gold Coast',nick:'Suns',home:'People First Stadium',colour:'#DA291C'},{id:'GWS',name:'GWS',nick:'Giants',home:'Engie Stadium',colour:'#F47920'},{id:'HAW',name:'Hawthorn',nick:'Hawks',home:'MCG',colour:'#4D2004'},{id:'MEL',name:'Melbourne',nick:'Demons',home:'MCG',colour:'#CC2031'},{id:'NTH',name:'North Melbourne',nick:'Kangaroos',home:'Marvel Stadium',colour:'#003A70'},{id:'PTA',name:'Port Adelaide',nick:'Power',home:'Adelaide Oval',colour:'#008AAB'},{id:'RIC',name:'Richmond',nick:'Tigers',home:'MCG',colour:'#FFD200'},{id:'STK',name:'St Kilda',nick:'Saints',home:'Marvel Stadium',colour:'#ED0F05'},{id:'SYD',name:'Sydney',nick:'Swans',home:'SCG',colour:'#E1001B'},{id:'WCE',name:'West Coast',nick:'Eagles',home:'Optus Stadium',colour:'#F2A900'},{id:'WBD',name:'Western Bulldogs',nick:'Bulldogs',home:'Marvel Stadium',colour:'#0038A8'}];
+const FOCUS_OPTS=['Speed','Skill','Attack','Defence','Contest','Physicality'];
+const ATTR_MAP={Speed:'speed',Skill:'skill',Attack:'attack',Defence:'defence',Contest:'contest',Physicality:'physicality'};
+const SPEED_LABELS=['Very slow','Slow','Normal','Fast','Instant'];
+const SPEED_MS=[2000,900,350,80,0];
+const RF=['Jake','Liam','Noah','Connor','Tyler','Hunter','Finn','Zac','Sam','Ben','Tom','Oliver','Max','Caleb','Ethan','Dylan','Will','Charlie','James','Lucas'];
+const RL=['Williams','Brown','Jones','Smith','Taylor','Davis','Wilson','Moore','Thomas','Martin'];
+const MIN_SQUAD=22;
+// MF = Mid-Forward = can play MID or FWD slots
+const STARTER_SLOTS={DEF:6,MID:8,RUC:2,FWD:6};
+const BENCH_SIZE=4;
+// Which positions an MF player can fill
+function mfCanFill(slotPos){return slotPos==='MID'||slotPos==='FWD';}
+function playerCanFill(p, slotPos){
+  if(p.pos===slotPos) return true;
+  if(p.pos==='MF') return mfCanFill(slotPos);
+  return false;
+}
+function rnd(a,b){return Math.floor(Math.random()*(b-a+1))+a;}
+function pick(arr){return arr[Math.floor(Math.random()*arr.length)];}
+function clamp(v){return Math.max(40,Math.min(99,Math.round(v)));}
+function teamOVR(id){return rosters[id]?Math.round(rosters[id].reduce((s,p)=>s+p.overall,0)/rosters[id].length):65;}
+function clubById(id){return CLUBS.find(c=>c.id===id)||{id,name:id,nick:id,home:'',colour:'#888'};}
+function posLabel(p){return p.pos==='MF'?'MF':p.pos;}
+let rosters={},MY='WCE',state,selState={},currentFix=null;
+
+const RD={ADE:[{name:"Alex Neal-Bullen",pos:"FWD",tier:1,speed:51,skill:47,attack:51,defence:40,contest:51,physicality:44,overall:47},{name:"Archie Ludowyke",pos:"FWD",tier:1,speed:62,skill:70,attack:65,defence:50,contest:58,physicality:63,overall:61},{name:"Ben Keays",pos:"FWD",tier:1,speed:49,skill:53,attack:51,defence:40,contest:49,physicality:47,overall:48},{name:"Billy Dowling",pos:"MF",tier:1,speed:50,skill:55,attack:54,defence:45,contest:49,physicality:47,overall:50},{name:"Brayden Cook",pos:"MID",tier:1,speed:55,skill:57,attack:61,defence:53,contest:62,physicality:63,overall:58},{name:"Callum Ah Chee",pos:"MF",tier:1,speed:60,skill:53,attack:50,defence:47,contest:47,physicality:54,overall:52},{name:"Charlie Edwards",pos:"MID",tier:1,speed:71,skill:62,attack:67,defence:54,contest:58,physicality:60,overall:62},{name:"Chayce Jones",pos:"DEF",tier:1,speed:49,skill:58,attack:40,defence:59,contest:49,physicality:52,overall:51},{name:"Daniel Curtin",pos:"MID",tier:1,speed:58,skill:67,attack:61,defence:56,contest:68,physicality:61,overall:62},{name:"Darcy Fogarty",pos:"FWD",tier:1,speed:50,skill:49,attack:52,defence:42,contest:48,physicality:49,overall:48},{name:"Finnbar Maley",pos:"FWD",tier:2,speed:78,skill:78,attack:88,defence:73,contest:68,physicality:74,overall:76},{name:"Hugh Bond",pos:"DEF",tier:2,speed:80,skill:79,attack:70,defence:82,contest:76,physicality:82,overall:78},{name:"Indy Cotton",pos:"FWD",tier:2,speed:72,skill:78,attack:77,defence:66,contest:70,physicality:68,overall:72},{name:"Isaac Cumming",pos:"MID",tier:1,speed:66,skill:60,attack:63,defence:58,contest:60,physicality:61,overall:61},{name:"Izak Rankine",pos:"FWD",tier:1,speed:62,skill:46,attack:64,defence:40,contest:57,physicality:48,overall:53},{name:"Jake Soligo",pos:"MID",tier:1,speed:60,skill:52,attack:56,defence:53,contest:61,physicality:61,overall:57},{name:"James Borlase",pos:"DEF",tier:1,speed:57,skill:70,attack:54,defence:76,contest:72,physicality:64,overall:66},{name:"James Peatling",pos:"MID",tier:1,speed:55,skill:64,attack:61,defence:54,contest:64,physicality:52,overall:58},{name:"Jordan Dawson",pos:"MID",tier:3,speed:87,skill:87,attack:90,defence:80,contest:97,physicality:88,overall:88},{name:"Jordon Butts",pos:"DEF",tier:2,speed:72,skill:71,attack:67,defence:79,contest:77,physicality:81,overall:74},{name:"Josh Rachele",pos:"MID",tier:2,speed:72,skill:80,attack:65,defence:63,contest:72,physicality:71,overall:70},{name:"Josh Worrell",pos:"DEF",tier:1,speed:49,skill:51,attack:50,defence:59,contest:62,physicality:58,overall:55},{name:"Lachlan McAndrew",pos:"RUC",tier:1,speed:45,skill:49,attack:50,defence:47,contest:59,physicality:58,overall:51},{name:"Lachlan Sholl",pos:"MID",tier:2,speed:74,skill:77,attack:82,defence:72,contest:79,physicality:79,overall:77},{name:"Luke Nankervis",pos:"DEF",tier:1,speed:70,skill:60,attack:55,defence:70,contest:60,physicality:64,overall:63},{name:"Luke Pedlar",pos:"FWD",tier:1,speed:67,skill:64,attack:65,defence:51,contest:68,physicality:70,overall:64},{name:"Mark Keane",pos:"DEF",tier:1,speed:43,skill:58,attack:43,defence:54,contest:53,physicality:48,overall:50},{name:"Max Michalanney",pos:"DEF",tier:1,speed:61,skill:66,attack:53,defence:75,contest:67,physicality:65,overall:64},{name:"Mitchell Hinge",pos:"DEF",tier:1,speed:68,skill:61,attack:52,defence:67,contest:68,physicality:64,overall:63},{name:"Mitchell Marsh",pos:"FWD",tier:1,speed:70,skill:54,attack:71,defence:56,contest:63,physicality:57,overall:62},{name:"Nick Murray",pos:"DEF",tier:1,speed:53,skill:56,attack:49,defence:64,contest:61,physicality:60,overall:57},{name:"Oscar Ryan",pos:"DEF",tier:1,speed:53,skill:55,attack:44,defence:57,contest:55,physicality:60,overall:54},{name:"Reilly O'Brien",pos:"RUC",tier:2,speed:58,skill:64,attack:74,defence:75,contest:77,physicality:73,overall:70},{name:"Riley Thilthorpe",pos:"FWD",tier:3,speed:84,skill:79,attack:88,defence:74,contest:81,physicality:80,overall:81},{name:"Rory Laird",pos:"DEF",tier:2,speed:63,skill:67,attack:54,defence:75,contest:65,physicality:73,overall:66},{name:"Sam Berry",pos:"MID",tier:1,speed:64,skill:69,attack:56,defence:54,contest:60,physicality:57,overall:60},{name:"Sid Draper",pos:"MF",tier:2,speed:72,skill:81,attack:79,defence:66,contest:71,physicality:80,overall:75},{name:"Taylor Walker",pos:"FWD",tier:1,speed:64,skill:57,attack:72,defence:50,contest:69,physicality:61,overall:62},{name:"Toby Murray",pos:"RUC",tier:1,speed:43,skill:53,attack:43,defence:49,contest:54,physicality:57,overall:50},{name:"Tyler Welsh",pos:"FWD",tier:1,speed:46,skill:54,attack:59,defence:43,contest:50,physicality:52,overall:51},{name:"Wayne Milera",pos:"DEF",tier:1,speed:54,skill:61,attack:49,defence:62,contest:55,physicality:57,overall:56},{name:"Zac Taylor",pos:"FWD",tier:1,speed:66,skill:59,attack:69,defence:43,contest:49,physicality:59,overall:58}],
+BRL:[{name:"Ben Murphy",pos:"DEF",tier:1,speed:45,skill:54,attack:42,defence:62,contest:50,physicality:48,overall:50},{name:"Bruce Reville",pos:"MID",tier:2,speed:70,skill:77,attack:70,defence:65,contest:75,physicality:72,overall:72},{name:"Cam Rayner",pos:"FWD",tier:1,speed:59,skill:65,attack:74,defence:50,contest:58,physicality:63,overall:62},{name:"Charlie Cameron",pos:"FWD",tier:1,speed:50,skill:51,attack:55,defence:45,contest:46,physicality:57,overall:51},{name:"Cody Curtin",pos:"FWD",tier:1,speed:66,skill:56,attack:56,defence:42,contest:58,physicality:57,overall:56},{name:"Conor McKenna",pos:"FWD",tier:2,speed:61,skill:68,attack:78,defence:53,contest:68,physicality:65,overall:66},{name:"Daniel Annable",pos:"MID",tier:1,speed:73,skill:72,attack:67,defence:56,contest:62,physicality:58,overall:65},{name:"Darcy Fort",pos:"RUC",tier:2,speed:62,skill:75,attack:67,defence:83,contest:85,physicality:84,overall:76},{name:"Darcy Gardiner",pos:"DEF",tier:1,speed:57,skill:56,attack:53,defence:69,contest:68,physicality:69,overall:62},{name:"Darcy Wilmot",pos:"DEF",tier:1,speed:57,skill:64,attack:50,defence:63,contest:59,physicality:66,overall:60},{name:"Darragh Joyce",pos:"DEF",tier:1,speed:57,skill:59,attack:51,defence:66,contest:62,physicality:56,overall:58},{name:"Dayne Zorko",pos:"DEF",tier:1,speed:63,skill:65,attack:56,defence:64,contest:57,physicality:55,overall:60},{name:"Eric Hipwood",pos:"FWD",tier:1,speed:58,skill:44,attack:58,defence:40,contest:46,physicality:59,overall:51},{name:"Harris Andrews",pos:"DEF",tier:3,speed:84,skill:78,attack:70,defence:84,contest:76,physicality:73,overall:78},{name:"Henry Smith",pos:"FWD",tier:1,speed:65,skill:60,attack:61,defence:57,contest:56,physicality:60,overall:60},{name:"Hugh McCluggage",pos:"MID",tier:1,speed:71,skill:67,attack:57,defence:55,contest:63,physicality:59,overall:62},{name:"Jack Payne",pos:"DEF",tier:1,speed:49,skill:52,attack:53,defence:65,contest:56,physicality:62,overall:56},{name:"James Tunstill",pos:"FWD",tier:1,speed:59,skill:65,attack:70,defence:49,contest:57,physicality:56,overall:59},{name:"Jarrod Berry",pos:"MID",tier:1,speed:58,skill:51,attack:50,defence:48,contest:48,physicality:52,overall:51},{name:"Jaspa Fletcher",pos:"DEF",tier:1,speed:52,skill:54,attack:43,defence:60,contest:51,physicality:52,overall:52},{name:"Josh Dunkley",pos:"MID",tier:1,speed:63,skill:68,attack:68,defence:69,contest:70,physicality:64,overall:67},{name:"Kai Lohmann",pos:"FWD",tier:1,speed:64,skill:49,attack:61,defence:46,contest:52,physicality:58,overall:55},{name:"Keidean Coleman",pos:"DEF",tier:1,speed:64,skill:60,attack:53,defence:64,contest:61,physicality:60,overall:60},{name:"Koby Evans",pos:"MID",tier:1,speed:49,skill:59,attack:58,defence:57,contest:62,physicality:57,overall:57},{name:"Lachie Neale",pos:"MID",tier:3,speed:82,skill:90,attack:93,defence:84,contest:88,physicality:86,overall:87},{name:"Levi Ashcroft",pos:"MID",tier:1,speed:50,skill:61,attack:55,defence:56,contest:60,physicality:45,overall:54},{name:"Lincoln McCarthy",pos:"FWD",tier:1,speed:61,skill:61,attack:60,defence:42,contest:48,physicality:59,overall:55},{name:"Logan Morris",pos:"FWD",tier:1,speed:59,skill:50,attack:53,defence:48,contest:54,physicality:54,overall:53},{name:"Luke Beecken",pos:"MID",tier:1,speed:66,skill:65,attack:69,defence:61,contest:76,physicality:73,overall:68},{name:"Luke Lloyd",pos:"DEF",tier:1,speed:67,skill:72,attack:60,defence:77,contest:73,physicality:71,overall:70},{name:"Noah Answerth",pos:"DEF",tier:2,speed:78,skill:69,attack:67,defence:82,contest:71,physicality:79,overall:74},{name:"Oscar Allen",pos:"FWD",tier:1,speed:66,skill:55,attack:60,defence:48,contest:49,physicality:62,overall:57},{name:"Reece Torrent",pos:"MID",tier:1,speed:60,skill:63,attack:61,defence:51,contest:57,physicality:54,overall:58},{name:"Ryan Lester",pos:"DEF",tier:1,speed:50,skill:48,attack:46,defence:61,contest:52,physicality:55,overall:52},{name:"Sam Draper",pos:"RUC",tier:1,speed:40,skill:52,attack:45,defence:48,contest:61,physicality:58,overall:51},{name:"Sam Marshall",pos:"MID",tier:1,speed:69,skill:57,attack:62,defence:58,contest:71,physicality:66,overall:64},{name:"Shadeau Brain",pos:"DEF",tier:2,speed:71,skill:74,attack:63,defence:79,contest:73,physicality:74,overall:72},{name:"Tai Hayes",pos:"MID",tier:1,speed:64,skill:60,attack:68,defence:59,contest:59,physicality:52,overall:60},{name:"Tom Doedee",pos:"DEF",tier:2,speed:67,skill:71,attack:73,defence:84,contest:72,physicality:83,overall:75},{name:"Ty Gallop",pos:"DEF",tier:1,speed:49,skill:50,attack:42,defence:55,contest:51,physicality:49,overall:49},{name:"Will Ashcroft",pos:"MID",tier:3,speed:82,skill:87,attack:79,defence:84,contest:90,physicality:85,overall:84},{name:"Will McLachlan",pos:"FWD",tier:1,speed:60,skill:42,attack:61,defence:43,contest:42,physicality:50,overall:50},{name:"Zac Bailey",pos:"MF",tier:1,speed:48,skill:58,attack:50,defence:45,contest:50,physicality:60,overall:52},{name:"Zane Zakostelsky",pos:"DEF",tier:1,speed:51,skill:49,attack:47,defence:56,contest:56,physicality:50,overall:52}],
+CAR:[{name:"Adam Cerra",pos:"MID",tier:1,speed:61,skill:58,attack:62,defence:59,contest:66,physicality:53,overall:60},{name:"Adam Saad",pos:"DEF",tier:1,speed:54,skill:49,attack:50,defence:56,contest:52,physicality:57,overall:53},{name:"Ashton Moir",pos:"FWD",tier:1,speed:67,skill:58,attack:61,defence:54,contest:63,physicality:68,overall:62},{name:"Ben Ainsworth",pos:"FWD",tier:1,speed:55,skill:46,attack:63,defence:45,contest:55,physicality:46,overall:52},{name:"Ben Camporeale",pos:"MID",tier:1,speed:66,skill:60,attack:66,defence:65,contest:65,physicality:55,overall:63},{name:"Billy Wilson",pos:"DEF",tier:2,speed:68,skill:74,attack:66,defence:83,contest:79,physicality:70,overall:73},{name:"Blake Acres",pos:"MID",tier:1,speed:66,skill:76,attack:68,defence:64,contest:76,physicality:66,overall:69},{name:"Brodie Kemp",pos:"FWD",tier:1,speed:52,skill:55,attack:62,defence:43,contest:59,physicality:57,overall:55},{name:"Campbell Chesser",pos:"MID",tier:1,speed:64,skill:57,attack:64,defence:67,contest:64,physicality:59,overall:62},{name:"Cooper Lord",pos:"MID",tier:1,speed:61,skill:66,attack:60,defence:62,contest:69,physicality:61,overall:63},{name:"Elijah Hollands",pos:"MF",tier:1,speed:67,skill:61,attack:67,defence:62,contest:68,physicality:69,overall:66},{name:"Flynn Young",pos:"FWD",tier:1,speed:73,skill:69,attack:75,defence:48,contest:56,physicality:62,overall:64},{name:"Francis Evans",pos:"FWD",tier:1,speed:59,skill:58,attack:62,defence:48,contest:55,physicality:55,overall:56},{name:"George Hewett",pos:"MID",tier:1,speed:69,skill:73,attack:73,defence:66,contest:68,physicality:68,overall:70},{name:"Harry Charleson",pos:"DEF",tier:1,speed:49,skill:51,attack:40,defence:62,contest:58,physicality:57,overall:53},{name:"Harry Dean",pos:"DEF",tier:1,speed:61,skill:53,attack:51,defence:65,contest:58,physicality:53,overall:57},{name:"Harry McKay",pos:"FWD",tier:2,speed:73,skill:68,attack:74,defence:56,contest:65,physicality:64,overall:67},{name:"Harry O'Farrell",pos:"DEF",tier:1,speed:52,skill:47,attack:40,defence:63,contest:51,physicality:58,overall:52},{name:"Hudson O'Keeffe",pos:"RUC",tier:2,speed:71,skill:73,attack:67,defence:82,contest:79,physicality:83,overall:76},{name:"Jack Ison",pos:"MID",tier:1,speed:71,skill:70,attack:62,defence:57,contest:66,physicality:72,overall:66},{name:"Jacob Weitering",pos:"DEF",tier:1,speed:54,skill:52,attack:40,defence:62,contest:55,physicality:55,overall:53},{name:"Jagga Smith",pos:"MID",tier:1,speed:64,skill:58,attack:50,defence:49,contest:52,physicality:59,overall:55},{name:"Jesse Motlop",pos:"FWD",tier:1,speed:62,skill:61,attack:62,defence:44,contest:60,physicality:59,overall:58},{name:"Jordan Boyd",pos:"DEF",tier:2,speed:63,skill:74,attack:59,defence:76,contest:75,physicality:68,overall:69},{name:"Lachie Fogarty",pos:"FWD",tier:1,speed:50,skill:49,attack:52,defence:43,contest:43,physicality:47,overall:47},{name:"Lachlan Cowan",pos:"DEF",tier:1,speed:69,skill:61,attack:50,defence:68,contest:61,physicality:68,overall:63},{name:"Lewis Young",pos:"DEF",tier:1,speed:56,skill:67,attack:53,defence:69,contest:69,physicality:69,overall:64},{name:"Liam Reidy",pos:"RUC",tier:1,speed:43,skill:45,attack:52,defence:50,contest:67,physicality:54,overall:52},{name:"Lucas Camporeale",pos:"MID",tier:2,speed:66,skill:68,attack:69,defence:76,contest:73,physicality:73,overall:71},{name:"Marc Pittonet",pos:"RUC",tier:1,speed:56,skill:56,attack:63,defence:61,contest:69,physicality:68,overall:62},{name:"Matt Duffy",pos:"DEF",tier:1,speed:56,skill:66,attack:50,defence:71,contest:68,physicality:62,overall:62},{name:"Matthew Carroll",pos:"MID",tier:1,speed:44,skill:52,attack:55,defence:55,contest:60,physicality:42,overall:51},{name:"Matthew Cottrell",pos:"MID",tier:2,speed:80,skill:76,attack:87,defence:84,contest:79,physicality:87,overall:82},{name:"Mitch McGovern",pos:"FWD",tier:1,speed:65,skill:59,attack:71,defence:53,contest:64,physicality:70,overall:64},{name:"Nic Newman",pos:"DEF",tier:1,speed:57,skill:50,attack:44,defence:58,contest:50,physicality:55,overall:52},{name:"Nick Haynes",pos:"DEF",tier:1,speed:55,skill:54,attack:48,defence:60,contest:58,physicality:54,overall:55},{name:"Oliver Florent",pos:"DEF",tier:1,speed:58,skill:67,attack:54,defence:73,contest:64,physicality:65,overall:64},{name:"Oliver Hollands",pos:"DEF",tier:1,speed:68,skill:68,attack:48,defence:71,contest:62,physicality:61,overall:63},{name:"Patrick Cripps",pos:"MID",tier:3,speed:75,skill:83,attack:85,defence:79,contest:88,physicality:89,overall:83},{name:"Rob Monahan",pos:"DEF",tier:1,speed:47,skill:48,attack:45,defence:54,contest:48,physicality:51,overall:49},{name:"Sam Walsh",pos:"MID",tier:3,speed:91,skill:82,attack:79,defence:86,contest:90,physicality:83,overall:85},{name:"Talor Byrne",pos:"FWD",tier:1,speed:52,skill:62,attack:58,defence:45,contest:62,physicality:53,overall:55},{name:"Wade Derksen",pos:"DEF",tier:1,speed:47,skill:53,attack:43,defence:62,contest:57,physicality:50,overall:52},{name:"Will Hayward",pos:"FWD",tier:1,speed:73,skill:62,attack:70,defence:56,contest:57,physicality:64,overall:64},{name:"Zac Williams",pos:"DEF",tier:1,speed:60,skill:72,attack:53,defence:71,contest:71,physicality:71,overall:66}],
+COL:[{name:"Angus Anderson",pos:"MID",tier:2,speed:83,skill:78,attack:83,defence:67,contest:76,physicality:76,overall:77},{name:"Beau McCreery",pos:"FWD",tier:2,speed:85,skill:71,attack:82,defence:68,contest:74,physicality:75,overall:76},{name:"Billy Frampton",pos:"DEF",tier:1,speed:69,skill:67,attack:58,defence:71,contest:71,physicality:63,overall:66},{name:"Bobby Hill",pos:"FWD",tier:1,speed:63,skill:48,attack:60,defence:51,contest:54,physicality:61,overall:56},{name:"Brayden Maynard",pos:"DEF",tier:2,speed:76,skill:77,attack:70,defence:77,contest:74,physicality:67,overall:74},{name:"Charlie West",pos:"FWD",tier:1,speed:56,skill:64,attack:59,defence:51,contest:57,physicality:53,overall:57},{name:"Dan Houston",pos:"DEF",tier:1,speed:57,skill:57,attack:56,defence:68,contest:61,physicality:65,overall:61},{name:"Daniel McStay",pos:"FWD",tier:1,speed:55,skill:54,attack:55,defence:45,contest:53,physicality:57,overall:53},{name:"Darcy Cameron",pos:"RUC",tier:1,speed:48,skill:64,attack:56,defence:61,contest:78,physicality:73,overall:63},{name:"Darcy Moore",pos:"DEF",tier:3,speed:88,skill:85,attack:76,defence:96,contest:83,physicality:94,overall:87},{name:"Edward Allan",pos:"MID",tier:1,speed:59,skill:53,attack:59,defence:49,contest:50,physicality:46,overall:53},{name:"Harry DeMattia",pos:"MID",tier:1,speed:52,skill:57,attack:51,defence:49,contest:50,physicality:50,overall:52},{name:"Harry Perryman",pos:"DEF",tier:1,speed:50,skill:50,attack:42,defence:65,contest:61,physicality:54,overall:54},{name:"Harvey Harrison",pos:"FWD",tier:1,speed:65,skill:51,attack:58,defence:47,contest:57,physicality:54,overall:55},{name:"Iliro Smit",pos:"RUC",tier:1,speed:43,skill:45,attack:42,defence:51,contest:59,physicality:48,overall:48},{name:"Isaac Quaynor",pos:"DEF",tier:1,speed:60,skill:64,attack:53,defence:66,contest:61,physicality:67,overall:62},{name:"Jack Buller",pos:"FWD",tier:1,speed:70,skill:55,attack:63,defence:51,contest:61,physicality:60,overall:60},{name:"Jack Crisp",pos:"MID",tier:1,speed:51,skill:66,attack:58,defence:51,contest:65,physicality:52,overall:57},{name:"Jai Saxena",pos:"FWD",tier:2,speed:87,skill:78,attack:89,defence:74,contest:72,physicality:81,overall:80},{name:"Jakob Ryan",pos:"DEF",tier:1,speed:53,skill:59,attack:47,defence:60,contest:60,physicality:51,overall:55},{name:"Jamie Elliott",pos:"FWD",tier:2,speed:72,skill:77,attack:88,defence:68,contest:68,physicality:80,overall:76},{name:"Jeremy Howe",pos:"DEF",tier:1,speed:46,skill:51,attack:45,defence:61,contest:49,physicality:50,overall:50},{name:"Joel Cochran",pos:"DEF",tier:1,speed:68,skill:68,attack:61,defence:72,contest:73,physicality:62,overall:67},{name:"Jordan De Goey",pos:"MF",tier:3,speed:84,skill:89,attack:86,defence:75,contest:87,physicality:89,overall:85},{name:"Josh Daicos",pos:"DEF",tier:1,speed:57,skill:47,attack:41,defence:57,contest:59,physicality:56,overall:53},{name:"Lachie Schultz",pos:"FWD",tier:1,speed:66,skill:54,attack:72,defence:51,contest:52,physicality:59,overall:59},{name:"Lachlan Sullivan",pos:"FWD",tier:1,speed:68,skill:62,attack:71,defence:53,contest:67,physicality:67,overall:65},{name:"Ned Long",pos:"MID",tier:2,speed:70,skill:81,attack:66,defence:72,contest:76,physicality:73,overall:73},{name:"Nick Daicos",pos:"MID",tier:3,speed:84,skill:82,attack:90,defence:90,contest:89,physicality:86,overall:87},{name:"Noah Howes",pos:"FWD",tier:1,speed:50,skill:44,attack:51,defence:40,contest:50,physicality:47,overall:47},{name:"Oscar Steene",pos:"RUC",tier:1,speed:50,skill:61,attack:62,defence:63,contest:78,physicality:74,overall:65},{name:"Patrick Lipinski",pos:"MF",tier:1,speed:62,skill:71,attack:67,defence:54,contest:71,physicality:65,overall:65},{name:"Reef McInnes",pos:"DEF",tier:1,speed:49,skill:62,attack:49,defence:62,contest:58,physicality:58,overall:56},{name:"Roan Steele",pos:"MID",tier:2,speed:70,skill:81,attack:78,defence:77,contest:77,physicality:68,overall:75},{name:"Sam Swadling",pos:"MID",tier:1,speed:51,skill:65,attack:52,defence:58,contest:56,physicality:48,overall:55},{name:"Scott Pendlebury",pos:"MID",tier:3,speed:77,skill:89,attack:82,defence:78,contest:93,physicality:82,overall:84},{name:"Steele Sidebottom",pos:"MID",tier:1,speed:65,skill:68,attack:75,defence:72,contest:67,physicality:69,overall:69},{name:"Tew Jiath",pos:"DEF",tier:1,speed:48,skill:56,attack:40,defence:53,contest:51,physicality:47,overall:49},{name:"Tim Membrey",pos:"FWD",tier:1,speed:46,skill:47,attack:51,defence:41,contest:55,physicality:58,overall:50},{name:"Tyan Prindable",pos:"MID",tier:1,speed:52,skill:60,attack:59,defence:52,contest:59,physicality:65,overall:58},{name:"Wil Parker",pos:"DEF",tier:1,speed:57,skill:52,attack:43,defence:61,contest:54,physicality:46,overall:52},{name:"William Hayes",pos:"FWD",tier:1,speed:51,skill:63,attack:59,defence:47,contest:57,physicality:50,overall:54},{name:"Zac McCarthy",pos:"RUC",tier:1,speed:52,skill:59,attack:63,defence:57,contest:73,physicality:72,overall:63}],
+ESS:[{name:"Andrew McGrath",pos:"DEF",tier:2,speed:61,skill:67,attack:64,defence:72,contest:63,physicality:64,overall:65},{name:"Angus Clarke",pos:"DEF",tier:1,speed:67,skill:66,attack:62,defence:76,contest:64,physicality:67,overall:67},{name:"Archer Day-Wicks",pos:"MF",tier:1,speed:61,skill:69,attack:72,defence:54,contest:71,physicality:68,overall:66},{name:"Archer May",pos:"FWD",tier:1,speed:66,skill:70,attack:72,defence:53,contest:63,physicality:65,overall:65},{name:"Archie Perkins",pos:"FWD",tier:2,speed:80,skill:67,attack:77,defence:63,contest:69,physicality:77,overall:72},{name:"Archie Roberts",pos:"DEF",tier:1,speed:59,skill:48,attack:41,defence:56,contest:48,physicality:53,overall:51},{name:"Ben McKay",pos:"DEF",tier:1,speed:55,skill:62,attack:47,defence:71,contest:62,physicality:62,overall:60},{name:"Brayden Fiorini",pos:"MID",tier:1,speed:58,skill:59,attack:61,defence:55,contest:62,physicality:58,overall:59},{name:"Cillian Bourke",pos:"DEF",tier:2,speed:70,skill:76,attack:74,defence:84,contest:77,physicality:73,overall:76},{name:"Darcy Parish",pos:"MID",tier:3,speed:97,skill:88,attack:84,defence:89,contest:91,physicality:86,overall:89},{name:"Dyson Sharp",pos:"FWD",tier:2,speed:77,skill:66,attack:83,defence:60,contest:72,physicality:69,overall:71},{name:"Elijah Tsatas",pos:"MID",tier:1,speed:76,skill:62,attack:71,defence:69,contest:77,physicality:67,overall:70},{name:"Harrison Jones",pos:"MF",tier:1,speed:62,skill:66,attack:61,defence:53,contest:53,physicality:55,overall:58},{name:"Hussien El Achkar",pos:"FWD",tier:2,speed:82,skill:69,attack:77,defence:71,contest:77,physicality:70,overall:74},{name:"Isaac Kako",pos:"FWD",tier:1,speed:65,skill:68,attack:70,defence:56,contest:61,physicality:61,overall:64},{name:"Jacob Farrow",pos:"DEF",tier:1,speed:52,skill:53,attack:48,defence:63,contest:65,physicality:62,overall:57},{name:"Jade Gresham",pos:"FWD",tier:1,speed:53,skill:56,attack:60,defence:41,contest:49,physicality:54,overall:52},{name:"Jaxon Prior",pos:"DEF",tier:1,speed:54,skill:63,attack:52,defence:60,contest:56,physicality:57,overall:57},{name:"Jayden Nguyen",pos:"DEF",tier:1,speed:71,skill:68,attack:55,defence:66,contest:61,physicality:64,overall:64},{name:"Jordan Ridley",pos:"DEF",tier:2,speed:58,skill:64,attack:58,defence:72,contest:73,physicality:63,overall:65},{name:"Jye Caldwell",pos:"MID",tier:1,speed:61,skill:57,attack:54,defence:58,contest:67,physicality:64,overall:60},{name:"Kayle Gerreyn",pos:"FWD",tier:1,speed:62,skill:68,attack:68,defence:58,contest:62,physicality:67,overall:64},{name:"Kyle Langford",pos:"FWD",tier:1,speed:56,skill:65,attack:60,defence:52,contest:53,physicality:68,overall:59},{name:"Lachlan Blakiston",pos:"RUC",tier:1,speed:53,skill:57,attack:62,defence:64,contest:70,physicality:63,overall:62},{name:"Lewis Hayes",pos:"DEF",tier:1,speed:50,skill:45,attack:45,defence:58,contest:56,physicality:54,overall:51},{name:"Liam McMahon",pos:"FWD",tier:2,speed:75,skill:62,attack:70,defence:58,contest:68,physicality:68,overall:67},{name:"Mason Redman",pos:"DEF",tier:1,speed:61,skill:66,attack:53,defence:66,contest:60,physicality:67,overall:62},{name:"Matt Guelfi",pos:"FWD",tier:1,speed:62,skill:72,attack:72,defence:52,contest:68,physicality:64,overall:65},{name:"Max Kondogiannis",pos:"DEF",tier:1,speed:51,skill:48,attack:42,defence:59,contest:50,physicality:49,overall:50},{name:"Nate Caddy",pos:"FWD",tier:1,speed:50,skill:57,attack:57,defence:47,contest:51,physicality:57,overall:53},{name:"Nic Martin",pos:"MF",tier:1,speed:65,skill:56,attack:65,defence:51,contest:62,physicality:62,overall:60},{name:"Nick Bryan",pos:"RUC",tier:1,speed:48,skill:46,attack:51,defence:57,contest:60,physicality:58,overall:53},{name:"Nik Cox",pos:"MID",tier:1,speed:44,skill:57,attack:59,defence:47,contest:49,physicality:45,overall:50},{name:"Peter Wright",pos:"RUC",tier:1,speed:53,skill:61,attack:63,defence:65,contest:67,physicality:69,overall:63},{name:"Rhys Unwin",pos:"FWD",tier:2,speed:76,skill:77,attack:84,defence:67,contest:75,physicality:72,overall:75},{name:"Saad El-Hawli",pos:"DEF",tier:2,speed:68,skill:80,attack:66,defence:77,contest:76,physicality:78,overall:74},{name:"Sam Durham",pos:"MF",tier:1,speed:66,skill:58,attack:63,defence:55,contest:61,physicality:54,overall:60},{name:"Sullivan Robey",pos:"FWD",tier:1,speed:64,skill:62,attack:69,defence:47,contest:59,physicality:61,overall:60},{name:"Thomas Edwards",pos:"FWD",tier:1,speed:55,skill:60,attack:59,defence:51,contest:60,physicality:59,overall:57},{name:"Vigo Visentini",pos:"RUC",tier:1,speed:40,skill:43,attack:51,defence:55,contest:57,physicality:55,overall:50},{name:"Will Setterfield",pos:"MID",tier:1,speed:58,skill:59,attack:61,defence:62,contest:65,physicality:64,overall:62},{name:"Xavier Duursma",pos:"MID",tier:1,speed:60,skill:74,attack:69,defence:63,contest:63,physicality:69,overall:66},{name:"Zach Merrett",pos:"MID",tier:3,speed:85,skill:84,attack:82,defence:81,contest:93,physicality:91,overall:86},{name:"Zach Reid",pos:"DEF",tier:1,speed:48,skill:48,attack:44,defence:56,contest:55,physicality:59,overall:52},{name:"Zak Johnson",pos:"DEF",tier:1,speed:57,skill:69,attack:57,defence:76,contest:61,physicality:68,overall:65}],
+FRE:[{name:"Adam Sweid",pos:"MID",tier:1,speed:52,skill:55,attack:61,defence:54,contest:52,physicality:60,overall:56},{name:"Aiden Riddle",pos:"FWD",tier:1,speed:64,skill:56,attack:67,defence:51,contest:59,physicality:57,overall:59},{name:"Alex Pearce",pos:"DEF",tier:1,speed:56,skill:62,attack:50,defence:61,contest:55,physicality:60,overall:57},{name:"Andrew Brayshaw",pos:"MID",tier:3,speed:99,skill:99,attack:93,defence:95,contest:92,physicality:95,overall:96},{name:"Bailey Banfield",pos:"DEF",tier:1,speed:58,skill:69,attack:52,defence:73,contest:58,physicality:69,overall:63},{name:"Brandon Walker",pos:"DEF",tier:1,speed:66,skill:66,attack:52,defence:74,contest:71,physicality:59,overall:65},{name:"Brennan Cox",pos:"DEF",tier:1,speed:53,skill:55,attack:49,defence:58,contest:61,physicality:54,overall:55},{name:"Caleb Serong",pos:"MID",tier:3,speed:75,skill:83,attack:89,defence:80,contest:83,physicality:73,overall:80},{name:"Charlie Nicholls",pos:"FWD",tier:1,speed:66,skill:59,attack:66,defence:46,contest:57,physicality:58,overall:59},{name:"Christopher Scerri",pos:"FWD",tier:1,speed:56,skill:47,attack:53,defence:40,contest:47,physicality:59,overall:50},{name:"Cooper Simpson",pos:"DEF",tier:1,speed:59,skill:54,attack:49,defence:55,contest:48,physicality:47,overall:52},{name:"Corey Wagner",pos:"MID",tier:1,speed:63,skill:62,attack:50,defence:58,contest:55,physicality:53,overall:57},{name:"Hayden Young",pos:"MID",tier:1,speed:50,skill:59,attack:56,defence:55,contest:57,physicality:57,overall:56},{name:"Heath Chapman",pos:"DEF",tier:1,speed:55,skill:68,attack:59,defence:75,contest:61,physicality:69,overall:64},{name:"Hugh Davies",pos:"DEF",tier:1,speed:53,skill:65,attack:54,defence:67,contest:65,physicality:62,overall:61},{name:"Isaiah Dudley",pos:"FWD",tier:1,speed:56,skill:44,attack:58,defence:43,contest:50,physicality:57,overall:51},{name:"Jaeger O'Meara",pos:"MID",tier:2,speed:70,skill:85,attack:86,defence:77,contest:75,physicality:82,overall:79},{name:"Jaren Carr",pos:"DEF",tier:2,speed:62,skill:70,attack:59,defence:78,contest:68,physicality:76,overall:69},{name:"Jeremy Sharp",pos:"FWD",tier:1,speed:56,skill:47,attack:51,defence:41,contest:51,physicality:51,overall:50},{name:"Jordan Clark",pos:"DEF",tier:1,speed:59,skill:59,attack:48,defence:58,contest:60,physicality:50,overall:56},{name:"Josh Treacy",pos:"FWD",tier:1,speed:58,skill:63,attack:65,defence:47,contest:66,physicality:60,overall:60},{name:"Joshua Draper",pos:"DEF",tier:2,speed:72,skill:74,attack:65,defence:82,contest:73,physicality:70,overall:73},{name:"Judd McVee",pos:"DEF",tier:1,speed:55,skill:54,attack:42,defence:62,contest:53,physicality:50,overall:53},{name:"Jye Amiss",pos:"FWD",tier:1,speed:68,skill:67,attack:67,defence:51,contest:55,physicality:63,overall:62},{name:"Karl Worner",pos:"DEF",tier:1,speed:67,skill:58,attack:48,defence:68,contest:55,physicality:60,overall:59},{name:"Leon Kickett",pos:"MF",tier:1,speed:59,skill:54,attack:54,defence:46,contest:55,physicality:60,overall:55},{name:"Luke Jackson",pos:"RUC",tier:1,speed:54,skill:63,attack:58,defence:57,contest:72,physicality:65,overall:62},{name:"Luke Ryan",pos:"DEF",tier:3,speed:93,skill:82,attack:80,defence:99,contest:88,physicality:86,overall:88},{name:"Mason Cox",pos:"RUC",tier:1,speed:40,skill:49,attack:49,defence:48,contest:57,physicality:55,overall:50},{name:"Matthew Johnson",pos:"MID",tier:1,speed:47,skill:54,attack:63,defence:56,contest:62,physicality:61,overall:57},{name:"Michael Frederick",pos:"FWD",tier:1,speed:52,skill:53,attack:55,defence:41,contest:51,physicality:45,overall:50},{name:"Murphy Reid",pos:"FWD",tier:1,speed:68,skill:65,attack:69,defence:59,contest:55,physicality:66,overall:64},{name:"Nathan O'Driscoll",pos:"MID",tier:1,speed:65,skill:66,attack:66,defence:57,contest:61,physicality:56,overall:62},{name:"Neil Erasmus",pos:"MID",tier:1,speed:62,skill:62,attack:58,defence:48,contest:56,physicality:55,overall:57},{name:"Ollie Murphy",pos:"DEF",tier:1,speed:55,skill:60,attack:49,defence:60,contest:50,physicality:51,overall:54},{name:"Oscar McDonald",pos:"DEF",tier:2,speed:70,skill:79,attack:68,defence:77,contest:80,physicality:78,overall:75},{name:"Patrick Voss",pos:"FWD",tier:2,speed:77,skill:65,attack:79,defence:64,contest:67,physicality:70,overall:70},{name:"Ryda Luke",pos:"FWD",tier:2,speed:77,skill:80,attack:85,defence:65,contest:70,physicality:75,overall:75},{name:"Sam Sturt",pos:"FWD",tier:1,speed:65,skill:47,attack:60,defence:48,contest:56,physicality:55,overall:55},{name:"Sam Switkowski",pos:"FWD",tier:1,speed:64,skill:59,attack:66,defence:54,contest:63,physicality:71,overall:63},{name:"Sean Darcy",pos:"RUC",tier:3,speed:83,skill:86,attack:87,defence:88,contest:98,physicality:96,overall:90},{name:"Shai Bolton",pos:"MID",tier:1,speed:54,skill:69,attack:62,defence:62,contest:65,physicality:63,overall:62},{name:"Toby Whan",pos:"MID",tier:1,speed:77,skill:67,attack:74,defence:61,contest:70,physicality:75,overall:71},{name:"Tobyn Murray",pos:"FWD",tier:2,speed:64,skill:74,attack:68,defence:55,contest:60,physicality:63,overall:64}],
+GEE:[{name:"Bailey Smith",pos:"MID",tier:1,speed:60,skill:61,attack:65,defence:50,contest:58,physicality:55,overall:58},{name:"Brad Close",pos:"FWD",tier:1,speed:68,skill:61,attack:75,defence:54,contest:66,physicality:68,overall:65},{name:"Cillian Burke",pos:"FWD",tier:1,speed:52,skill:50,attack:63,defence:47,contest:56,physicality:57,overall:54},{name:"Connor O'Sullivan",pos:"DEF",tier:1,speed:41,skill:45,attack:40,defence:61,contest:48,physicality:54,overall:48},{name:"George Stevens",pos:"MID",tier:1,speed:55,skill:73,attack:68,defence:63,contest:64,physicality:64,overall:64},{name:"Gryan Miers",pos:"FWD",tier:1,speed:64,skill:66,attack:61,defence:56,contest:52,physicality:57,overall:59},{name:"Harley Barker",pos:"MID",tier:1,speed:71,skill:66,attack:65,defence:66,contest:64,physicality:67,overall:66},{name:"Hunter Holmes",pos:"MID",tier:2,speed:78,skill:82,attack:72,defence:79,contest:77,physicality:83,overall:78},{name:"Jack Bowes",pos:"MID",tier:1,speed:59,skill:69,attack:56,defence:56,contest:64,physicality:59,overall:60},{name:"Jack Henry",pos:"DEF",tier:1,speed:50,skill:50,attack:46,defence:58,contest:47,physicality:57,overall:51},{name:"Jack Martin",pos:"FWD",tier:2,speed:76,skill:69,attack:83,defence:58,contest:70,physicality:74,overall:72},{name:"Jacob Molier",pos:"FWD",tier:1,speed:67,skill:49,attack:58,defence:48,contest:57,physicality:59,overall:56},{name:"Jake Kolodjashnij",pos:"DEF",tier:2,speed:72,skill:64,attack:57,defence:76,contest:71,physicality:73,overall:69},{name:"James Worpel",pos:"MID",tier:2,speed:87,skill:84,attack:83,defence:72,contest:90,physicality:75,overall:82},{name:"Jay Polkinghorne",pos:"FWD",tier:1,speed:62,skill:60,attack:61,defence:41,contest:54,physicality:51,overall:55},{name:"Jed Bews",pos:"DEF",tier:1,speed:57,skill:57,attack:46,defence:58,contest:55,physicality:57,overall:55},{name:"Jeremy Cameron",pos:"FWD",tier:3,speed:92,skill:83,attack:92,defence:78,contest:84,physicality:79,overall:85},{name:"Jesse Mellor",pos:"FWD",tier:1,speed:58,skill:54,attack:63,defence:41,contest:51,physicality:51,overall:53},{name:"Jhye Clark",pos:"MF",tier:1,speed:63,skill:58,attack:54,defence:46,contest:51,physicality:53,overall:54},{name:"Joe Pike",pos:"RUC",tier:1,speed:54,skill:60,attack:55,defence:65,contest:74,physicality:63,overall:62},{name:"Keighton Matofai-Forbes",pos:"DEF",tier:1,speed:55,skill:59,attack:55,defence:65,contest:62,physicality:58,overall:59},{name:"Lawson Humphries",pos:"DEF",tier:1,speed:71,skill:70,attack:61,defence:71,contest:66,physicality:72,overall:68},{name:"Lennox Hofmann",pos:"DEF",tier:1,speed:53,skill:59,attack:55,defence:65,contest:65,physicality:64,overall:60},{name:"Mark Blicavs",pos:"RUC",tier:2,speed:59,skill:75,attack:73,defence:73,contest:89,physicality:86,overall:76},{name:"Mark O'Connor",pos:"MID",tier:2,speed:89,skill:81,attack:85,defence:71,contest:85,physicality:86,overall:83},{name:"Max Holmes",pos:"MID",tier:1,speed:58,skill:64,attack:57,defence:63,contest:70,physicality:57,overall:62},{name:"Mitch Knevitt",pos:"FWD",tier:1,speed:67,skill:67,attack:64,defence:53,contest:65,physicality:60,overall:63},{name:"Mitchell Edwards",pos:"RUC",tier:1,speed:57,skill:64,attack:53,defence:67,contest:68,physicality:69,overall:63},{name:"Nicholas Driscoll",pos:"MID",tier:1,speed:67,skill:67,attack:60,defence:54,contest:64,physicality:62,overall:62},{name:"Oisin Mullin",pos:"DEF",tier:1,speed:63,skill:54,attack:47,defence:63,contest:59,physicality:55,overall:57},{name:"Oliver Dempsey",pos:"MID",tier:1,speed:60,skill:60,attack:65,defence:62,contest:63,physicality:61,overall:62},{name:"Oliver Henry",pos:"FWD",tier:1,speed:68,skill:66,attack:66,defence:59,contest:67,physicality:68,overall:66},{name:"Oliver Wiltshire",pos:"FWD",tier:1,speed:66,skill:56,attack:64,defence:45,contest:56,physicality:66,overall:59},{name:"Patrick Dangerfield",pos:"FWD",tier:3,speed:82,skill:88,attack:92,defence:80,contest:81,physicality:91,overall:86},{name:"Rhys Stanley",pos:"RUC",tier:1,speed:45,skill:48,attack:52,defence:58,contest:61,physicality:54,overall:53},{name:"Sam De Koning",pos:"DEF",tier:1,speed:54,skill:50,attack:53,defence:66,contest:53,physicality:60,overall:56},{name:"Shannon Neale",pos:"FWD",tier:1,speed:59,skill:53,attack:62,defence:43,contest:44,physicality:56,overall:53},{name:"Shaun Mannagh",pos:"FWD",tier:1,speed:48,skill:53,attack:58,defence:40,contest:47,physicality:53,overall:50},{name:"Tanner Bruhn",pos:"DEF",tier:1,speed:59,skill:56,attack:55,defence:60,contest:64,physicality:53,overall:58},{name:"Toby Conway",pos:"RUC",tier:1,speed:46,skill:56,attack:56,defence:61,contest:58,physicality:55,overall:55},{name:"Tom Atkins",pos:"MID",tier:1,speed:48,skill:62,attack:62,defence:54,contest:54,physicality:56,overall:56},{name:"Tom Stewart",pos:"DEF",tier:3,speed:77,skill:79,attack:76,defence:96,contest:88,physicality:80,overall:83},{name:"Tyson Stengle",pos:"FWD",tier:2,speed:75,skill:77,attack:81,defence:64,contest:71,physicality:73,overall:74},{name:"Zach Guthrie",pos:"DEF",tier:2,speed:76,skill:70,attack:60,defence:74,contest:75,physicality:64,overall:70}],
+GCS:[{name:"Alex Davies",pos:"MID",tier:1,speed:64,skill:64,attack:59,defence:67,contest:66,physicality:65,overall:64},{name:"Asher Eastham",pos:"DEF",tier:1,speed:51,skill:58,attack:52,defence:63,contest:62,physicality:55,overall:57},{name:"Avery Thomas",pos:"DEF",tier:1,speed:54,skill:55,attack:40,defence:55,contest:47,physicality:52,overall:50},{name:"Bailey Humphrey",pos:"FWD",tier:1,speed:50,skill:55,attack:61,defence:43,contest:54,physicality:62,overall:54},{name:"Beau Addinsall",pos:"MID",tier:1,speed:61,skill:55,attack:59,defence:62,contest:62,physicality:59,overall:60},{name:"Ben Jepson",pos:"MID",tier:1,speed:59,skill:57,attack:50,defence:51,contest:60,physicality:61,overall:56},{name:"Ben King",pos:"FWD",tier:3,speed:87,skill:78,attack:93,defence:72,contest:80,physicality:87,overall:83},{name:"Ben Long",pos:"FWD",tier:1,speed:62,skill:48,attack:59,defence:48,contest:53,physicality:52,overall:54},{name:"Bodhi Uwland",pos:"DEF",tier:1,speed:72,skill:72,attack:61,defence:71,contest:72,physicality:63,overall:68},{name:"Caleb Graham",pos:"DEF",tier:1,speed:58,skill:52,attack:46,defence:58,contest:46,physicality:54,overall:52},{name:"Caleb Lewis",pos:"FWD",tier:1,speed:66,skill:61,attack:67,defence:55,contest:70,physicality:68,overall:64},{name:"Charlie Ballard",pos:"DEF",tier:1,speed:61,skill:50,attack:50,defence:64,contest:61,physicality:49,overall:56},{name:"Christian Petracca",pos:"MF",tier:1,speed:74,skill:67,attack:73,defence:56,contest:69,physicality:68,overall:68},{name:"Cooper Bell",pos:"DEF",tier:1,speed:49,skill:58,attack:49,defence:60,contest:63,physicality:55,overall:56},{name:"Daniel Rioli",pos:"DEF",tier:1,speed:54,skill:49,attack:40,defence:60,contest:44,physicality:45,overall:49},{name:"Dylan Patterson",pos:"DEF",tier:2,speed:66,skill:72,attack:67,defence:78,contest:80,physicality:70,overall:72},{name:"Elliott Himmelberg",pos:"FWD",tier:1,speed:67,skill:65,attack:68,defence:59,contest:59,physicality:62,overall:63},{name:"Ethan Read",pos:"FWD",tier:1,speed:64,skill:68,attack:66,defence:52,contest:65,physicality:66,overall:64},{name:"Jai Murray",pos:"MID",tier:1,speed:49,skill:52,attack:56,defence:56,contest:64,physicality:62,overall:56},{name:"Jake Rogers",pos:"FWD",tier:1,speed:57,skill:61,attack:60,defence:42,contest:51,physicality:53,overall:54},{name:"Jamarra Ugle-Hagan",pos:"FWD",tier:2,speed:75,skill:70,attack:89,defence:72,contest:75,physicality:81,overall:77},{name:"Jarrod Witts",pos:"RUC",tier:1,speed:40,skill:41,attack:40,defence:42,contest:60,physicality:46,overall:45},{name:"Jed Walter",pos:"FWD",tier:1,speed:51,skill:42,attack:55,defence:41,contest:44,physicality:52,overall:48},{name:"Joel Jeffrey",pos:"DEF",tier:1,speed:45,skill:52,attack:41,defence:55,contest:57,physicality:55,overall:51},{name:"John Noble",pos:"DEF",tier:1,speed:57,skill:57,attack:48,defence:69,contest:56,physicality:59,overall:58},{name:"Jy Farrar",pos:"FWD",tier:1,speed:49,skill:54,attack:57,defence:41,contest:41,physicality:49,overall:48},{name:"Koby Coulson",pos:"MID",tier:2,speed:84,skill:85,attack:86,defence:78,contest:83,physicality:76,overall:82},{name:"Lachie Weller",pos:"MID",tier:1,speed:64,skill:65,attack:53,defence:60,contest:55,physicality:56,overall:59},{name:"Lachlan Gulbin",pos:"FWD",tier:2,speed:77,skill:61,attack:76,defence:59,contest:66,physicality:71,overall:68},{name:"Leonardo Lombard",pos:"FWD",tier:1,speed:62,skill:60,attack:63,defence:50,contest:62,physicality:56,overall:59},{name:"Mac Andrew",pos:"DEF",tier:2,speed:65,skill:74,attack:62,defence:74,contest:70,physicality:72,overall:70},{name:"Matt Rowell",pos:"MID",tier:3,speed:82,skill:86,attack:87,defence:93,contest:98,physicality:87,overall:89},{name:"Max Knobel",pos:"RUC",tier:1,speed:45,skill:48,attack:51,defence:54,contest:62,physicality:67,overall:54},{name:"Ned Moyle",pos:"RUC",tier:2,speed:59,skill:74,attack:72,defence:77,contest:79,physicality:77,overall:73},{name:"Nick Holman",pos:"MID",tier:2,speed:80,skill:82,attack:79,defence:77,contest:83,physicality:81,overall:80},{name:"Noah Anderson",pos:"MID",tier:1,speed:69,skill:71,attack:63,defence:54,contest:70,physicality:68,overall:66},{name:"Oscar Adams",pos:"DEF",tier:1,speed:56,skill:58,attack:51,defence:67,contest:53,physicality:62,overall:58},{name:"Sam Clohesy",pos:"MID",tier:2,speed:64,skill:75,attack:75,defence:73,contest:78,physicality:77,overall:74},{name:"Sam Collins",pos:"DEF",tier:1,speed:56,skill:52,attack:48,defence:66,contest:62,physicality:52,overall:56},{name:"Touk Miller",pos:"MF",tier:3,speed:88,skill:80,attack:86,defence:73,contest:77,physicality:85,overall:82},{name:"Wil Powell",pos:"MID",tier:2,speed:87,skill:89,attack:77,defence:83,contest:89,physicality:83,overall:85},{name:"Will Graham",pos:"MF",tier:1,speed:65,skill:73,attack:71,defence:55,contest:68,physicality:60,overall:65},{name:"Zak Evans",pos:"DEF",tier:2,speed:60,skill:74,attack:55,defence:76,contest:64,physicality:75,overall:67},{name:"Zeke Uwland",pos:"MID",tier:1,speed:48,skill:47,attack:50,defence:52,contest:56,physicality:55,overall:51}],
+GWS:[{name:"Aaron Cadman",pos:"FWD",tier:1,speed:73,skill:55,attack:63,defence:56,contest:63,physicality:64,overall:62},{name:"Brent Daniels",pos:"FWD",tier:1,speed:67,skill:65,attack:64,defence:57,contest:69,physicality:70,overall:65},{name:"Callum Brown",pos:"FWD",tier:1,speed:51,skill:48,attack:61,defence:40,contest:48,physicality:51,overall:50},{name:"Clayton Oliver",pos:"MID",tier:1,speed:61,skill:61,attack:65,defence:56,contest:56,physicality:61,overall:60},{name:"Cody Angove",pos:"FWD",tier:2,speed:75,skill:72,attack:77,defence:68,contest:78,physicality:81,overall:75},{name:"Connor Idun",pos:"DEF",tier:1,speed:43,skill:50,attack:43,defence:58,contest:52,physicality:51,overall:50},{name:"Conor Stone",pos:"DEF",tier:1,speed:45,skill:44,attack:43,defence:57,contest:53,physicality:55,overall:50},{name:"Darcy Jones",pos:"FWD",tier:1,speed:47,skill:50,attack:54,defence:49,contest:54,physicality:55,overall:52},{name:"Finn Callaghan",pos:"MID",tier:1,speed:45,skill:54,attack:54,defence:52,contest:58,physicality:44,overall:51},{name:"Finnegan Davis",pos:"DEF",tier:1,speed:50,skill:56,attack:55,defence:63,contest:65,physicality:66,overall:59},{name:"Harrison Oliver",pos:"DEF",tier:1,speed:54,skill:59,attack:50,defence:72,contest:58,physicality:64,overall:60},{name:"Harry Himmelberg",pos:"DEF",tier:2,speed:74,skill:73,attack:62,defence:76,contest:75,physicality:78,overall:73},{name:"Harry Rowston",pos:"MID",tier:2,speed:65,skill:78,attack:68,defence:75,contest:68,physicality:72,overall:71},{name:"Harvey Thomas",pos:"MID",tier:1,speed:64,skill:57,attack:67,defence:58,contest:71,physicality:68,overall:64},{name:"Jack Buckley",pos:"DEF",tier:1,speed:63,skill:60,attack:49,defence:71,contest:64,physicality:60,overall:61},{name:"Jack Ough",pos:"MID",tier:1,speed:58,skill:56,attack:55,defence:55,contest:58,physicality:63,overall:58},{name:"Jake Riccardi",pos:"FWD",tier:1,speed:59,skill:54,attack:57,defence:40,contest:45,physicality:47,overall:50},{name:"Jake Stringer",pos:"FWD",tier:2,speed:79,skill:73,attack:74,defence:60,contest:66,physicality:70,overall:70},{name:"James Leake",pos:"DEF",tier:1,speed:73,skill:66,attack:54,defence:68,contest:61,physicality:65,overall:64},{name:"Jayden Laverde",pos:"DEF",tier:1,speed:62,skill:53,attack:50,defence:67,contest:59,physicality:65,overall:59},{name:"Jesse Hogan",pos:"FWD",tier:1,speed:67,skill:73,attack:67,defence:60,contest:63,physicality:62,overall:65},{name:"Joe Fonti",pos:"DEF",tier:1,speed:57,skill:59,attack:47,defence:61,contest:54,physicality:58,overall:56},{name:"Josaia Delana",pos:"FWD",tier:1,speed:67,skill:51,attack:62,defence:46,contest:52,physicality:63,overall:57},{name:"Josh Kelly",pos:"MID",tier:3,speed:92,skill:86,attack:87,defence:78,contest:84,physicality:86,overall:86},{name:"Kieren Briggs",pos:"RUC",tier:1,speed:48,skill:63,attack:59,defence:59,contest:68,physicality:65,overall:60},{name:"Lachie Ash",pos:"DEF",tier:1,speed:53,skill:52,attack:49,defence:58,contest:54,physicality:52,overall:53},{name:"Lachie Whitfield",pos:"DEF",tier:1,speed:62,skill:59,attack:58,defence:70,contest:64,physicality:67,overall:63},{name:"Leek Aleer",pos:"RUC",tier:1,speed:47,skill:63,attack:62,defence:59,contest:68,physicality:59,overall:60},{name:"Logan Smith",pos:"RUC",tier:2,speed:61,skill:67,attack:61,defence:72,contest:80,physicality:67,overall:68},{name:"Max Gruzewski",pos:"FWD",tier:2,speed:74,skill:79,attack:85,defence:62,contest:78,physicality:79,overall:76},{name:"Nathan Wardius",pos:"FWD",tier:1,speed:71,skill:57,attack:71,defence:50,contest:56,physicality:60,overall:61},{name:"Nicholas Madden",pos:"RUC",tier:1,speed:56,skill:57,attack:52,defence:61,contest:73,physicality:66,overall:61},{name:"Oliver Hannaford",pos:"FWD",tier:1,speed:73,skill:58,attack:77,defence:55,contest:68,physicality:72,overall:67},{name:"Oskar Taylor",pos:"DEF",tier:1,speed:45,skill:57,attack:41,defence:58,contest:47,physicality:55,overall:50},{name:"Phoenix Gothard",pos:"FWD",tier:1,speed:65,skill:65,attack:61,defence:45,contest:53,physicality:59,overall:58},{name:"Riley Hamilton",pos:"MF",tier:1,speed:68,skill:67,attack:69,defence:62,contest:68,physicality:73,overall:68},{name:"Ryan Angwin",pos:"MID",tier:1,speed:62,skill:72,attack:61,defence:65,contest:64,physicality:67,overall:65},{name:"Sam Taylor",pos:"DEF",tier:3,speed:86,skill:77,attack:70,defence:86,contest:81,physicality:80,overall:80},{name:"Stephen Coniglio",pos:"MF",tier:1,speed:66,skill:55,attack:61,defence:47,contest:58,physicality:62,overall:58},{name:"Toby Bedford",pos:"FWD",tier:1,speed:55,skill:59,attack:58,defence:55,contest:61,physicality:54,overall:57},{name:"Toby Greene",pos:"MID",tier:3,speed:79,skill:92,attack:92,defence:80,contest:94,physicality:84,overall:87},{name:"Toby McMullin",pos:"FWD",tier:2,speed:79,skill:85,attack:79,defence:70,contest:71,physicality:77,overall:77},{name:"Tom Green",pos:"MID",tier:1,speed:63,skill:71,attack:69,defence:58,contest:63,physicality:69,overall:66},{name:"Xavier O'Halloran",pos:"MF",tier:1,speed:65,skill:59,attack:60,defence:52,contest:51,physicality:62,overall:58}],
+HAW:[{name:"Aidan Schubert",pos:"FWD",tier:1,speed:53,skill:51,attack:68,defence:54,contest:56,physicality:53,overall:56},{name:"Bailey Macdonald",pos:"DEF",tier:1,speed:60,skill:50,attack:46,defence:64,contest:57,physicality:59,overall:56},{name:"Blake Hardwick",pos:"DEF",tier:1,speed:64,skill:64,attack:49,defence:68,contest:60,physicality:68,overall:62},{name:"Bodie Ryan",pos:"DEF",tier:1,speed:54,skill:57,attack:50,defence:57,contest:58,physicality:50,overall:54},{name:"Calsher Dear",pos:"FWD",tier:1,speed:59,skill:50,attack:57,defence:45,contest:58,physicality:52,overall:54},{name:"Cam Mackenzie",pos:"MID",tier:1,speed:59,skill:70,attack:64,defence:57,contest:67,physicality:60,overall:63},{name:"Cameron Nairn",pos:"MF",tier:1,speed:69,skill:61,attack:65,defence:60,contest:73,physicality:67,overall:66},{name:"Cody Anderson",pos:"MID",tier:1,speed:53,skill:71,attack:58,defence:56,contest:71,physicality:65,overall:62},{name:"Connor Macdonald",pos:"FWD",tier:2,speed:84,skill:79,attack:84,defence:66,contest:72,physicality:80,overall:78},{name:"Conor Nash",pos:"MID",tier:2,speed:74,skill:74,attack:81,defence:69,contest:86,physicality:76,overall:77},{name:"Dylan Moore",pos:"FWD",tier:1,speed:58,skill:57,attack:58,defence:53,contest:55,physicality:60,overall:57},{name:"Finn Maginness",pos:"FWD",tier:1,speed:61,skill:58,attack:67,defence:60,contest:63,physicality:71,overall:63},{name:"Flynn Perez",pos:"DEF",tier:2,speed:67,skill:81,attack:69,defence:85,contest:72,physicality:75,overall:75},{name:"Harry Morrison",pos:"MID",tier:1,speed:58,skill:53,attack:59,defence:53,contest:59,physicality:51,overall:56},{name:"Henry Hustwaite",pos:"MID",tier:1,speed:52,skill:54,attack:60,defence:56,contest:59,physicality:56,overall:56},{name:"Jack Dalton",pos:"FWD",tier:2,speed:83,skill:72,attack:84,defence:62,contest:79,physicality:73,overall:76},{name:"Jack Ginnivan",pos:"FWD",tier:1,speed:55,skill:49,attack:58,defence:42,contest:43,physicality:49,overall:49},{name:"Jack Gunston",pos:"FWD",tier:2,speed:74,skill:70,attack:78,defence:65,contest:75,physicality:66,overall:71},{name:"Jack Scrimshaw",pos:"DEF",tier:1,speed:54,skill:60,attack:59,defence:66,contest:67,physicality:69,overall:62},{name:"Jai Newcombe",pos:"MID",tier:1,speed:56,skill:56,attack:61,defence:59,contest:61,physicality:58,overall:58},{name:"Jaime Uhr-Henry",pos:"RUC",tier:1,speed:49,skill:52,attack:52,defence:56,contest:60,physicality:64,overall:56},{name:"James Blanck",pos:"DEF",tier:1,speed:54,skill:53,attack:42,defence:58,contest:52,physicality:52,overall:52},{name:"James Sicily",pos:"DEF",tier:3,speed:83,skill:85,attack:69,defence:85,contest:87,physicality:83,overall:82},{name:"Jarman Impey",pos:"DEF",tier:1,speed:53,skill:66,attack:55,defence:68,contest:57,physicality:60,overall:60},{name:"Josh Battle",pos:"DEF",tier:2,speed:73,skill:73,attack:65,defence:81,contest:76,physicality:77,overall:74},{name:"Josh Ward",pos:"MID",tier:1,speed:67,skill:61,attack:60,defence:58,contest:72,physicality:71,overall:65},{name:"Josh Weddle",pos:"MID",tier:1,speed:61,skill:64,attack:50,defence:53,contest:55,physicality:51,overall:56},{name:"Karl Amon",pos:"DEF",tier:2,speed:67,skill:78,attack:62,defence:74,contest:75,physicality:70,overall:71},{name:"Lloyd Meek",pos:"RUC",tier:1,speed:52,skill:59,attack:51,defence:52,contest:68,physicality:67,overall:58},{name:"Mabior Chol",pos:"FWD",tier:1,speed:63,skill:49,attack:66,defence:41,contest:47,physicality:53,overall:53},{name:"Massimo D'Ambrosio",pos:"MID",tier:1,speed:64,skill:56,attack:57,defence:56,contest:58,physicality:46,overall:56},{name:"Matt Hill",pos:"FWD",tier:1,speed:56,skill:63,attack:69,defence:45,contest:57,physicality:54,overall:57},{name:"Matthew LeRay",pos:"MID",tier:1,speed:47,skill:50,attack:52,defence:49,contest:53,physicality:48,overall:50},{name:"Max Ramsden",pos:"FWD",tier:1,speed:51,skill:46,attack:60,defence:46,contest:44,physicality:56,overall:50},{name:"Mitch Lewis",pos:"FWD",tier:3,speed:83,skill:89,attack:88,defence:79,contest:78,physicality:88,overall:84},{name:"Ned Reeves",pos:"RUC",tier:1,speed:53,skill:61,attack:58,defence:67,contest:67,physicality:60,overall:61},{name:"Nick Watson",pos:"FWD",tier:2,speed:66,skill:72,attack:73,defence:59,contest:65,physicality:75,overall:68},{name:"Noah Mraz",pos:"DEF",tier:1,speed:50,skill:54,attack:52,defence:68,contest:60,physicality:62,overall:58},{name:"Oliver Greeves",pos:"MID",tier:1,speed:51,skill:51,attack:53,defence:51,contest:55,physicality:48,overall:52},{name:"Sam Butler",pos:"MF",tier:1,speed:55,skill:65,attack:69,defence:52,contest:61,physicality:60,overall:60},{name:"Tom Barrass",pos:"DEF",tier:1,speed:57,skill:66,attack:51,defence:71,contest:63,physicality:60,overall:61},{name:"Will Day",pos:"MID",tier:3,speed:83,skill:87,attack:79,defence:79,contest:86,physicality:76,overall:82},{name:"William McCabe",pos:"FWD",tier:1,speed:45,skill:44,attack:50,defence:40,contest:45,physicality:45,overall:45}],
+MEL:[{name:"Aidan Johnson",pos:"FWD",tier:2,speed:85,skill:86,attack:82,defence:73,contest:81,physicality:81,overall:81},{name:"Andy Moniz-Wakefield",pos:"DEF",tier:1,speed:65,skill:57,attack:59,defence:72,contest:64,physicality:65,overall:64},{name:"Bailey Laurie",pos:"FWD",tier:1,speed:54,skill:44,attack:58,defence:40,contest:54,physicality:47,overall:50},{name:"Bayley Fritsch",pos:"FWD",tier:1,speed:57,skill:61,attack:71,defence:51,contest:63,physicality:68,overall:62},{name:"Blake Howes",pos:"DEF",tier:1,speed:49,skill:56,attack:44,defence:65,contest:59,physicality:59,overall:55},{name:"Brody Mihocek",pos:"FWD",tier:1,speed:51,skill:45,attack:64,defence:40,contest:56,physicality:48,overall:51},{name:"Caleb Windsor",pos:"MID",tier:1,speed:69,skill:64,attack:58,defence:58,contest:60,physicality:61,overall:62},{name:"Changkuoth Jiath",pos:"DEF",tier:1,speed:43,skill:51,attack:45,defence:58,contest:54,physicality:47,overall:50},{name:"Christian Salem",pos:"DEF",tier:1,speed:57,skill:52,attack:46,defence:58,contest:45,physicality:52,overall:52},{name:"Daniel Turner",pos:"DEF",tier:2,speed:71,skill:65,attack:60,defence:72,contest:72,physicality:73,overall:69},{name:"Ed Langdon",pos:"MID",tier:1,speed:65,skill:52,attack:52,defence:62,contest:67,physicality:49,overall:58},{name:"Harrison Petty",pos:"DEF",tier:1,speed:66,skill:64,attack:53,defence:68,contest:71,physicality:58,overall:63},{name:"Harry Sharp",pos:"FWD",tier:1,speed:63,skill:63,attack:64,defence:52,contest:64,physicality:61,overall:61},{name:"Harvey Langford",pos:"MID",tier:1,speed:62,skill:58,attack:48,defence:52,contest:59,physicality:45,overall:54},{name:"Jack Henderson",pos:"FWD",tier:1,speed:60,skill:68,attack:65,defence:56,contest:69,physicality:63,overall:64},{name:"Jack Steele",pos:"MID",tier:1,speed:61,skill:56,attack:62,defence:58,contest:56,physicality:62,overall:59},{name:"Jack Viney",pos:"MID",tier:1,speed:58,skill:68,attack:59,defence:60,contest:63,physicality:57,overall:61},{name:"Jacob van Rooyen",pos:"FWD",tier:1,speed:67,skill:61,attack:65,defence:56,contest:57,physicality:63,overall:62},{name:"Jai Culley",pos:"MID",tier:1,speed:52,skill:45,attack:57,defence:52,contest:53,physicality:51,overall:52},{name:"Jake Bowey",pos:"DEF",tier:1,speed:63,skill:65,attack:59,defence:67,contest:61,physicality:70,overall:64},{name:"Jake Lever",pos:"DEF",tier:1,speed:48,skill:57,attack:45,defence:58,contest:55,physicality:49,overall:52},{name:"Jake Melksham",pos:"FWD",tier:1,speed:48,skill:58,attack:52,defence:45,contest:55,physicality:51,overall:52},{name:"Jed Adams",pos:"DEF",tier:1,speed:54,skill:54,attack:40,defence:55,contest:48,physicality:48,overall:50},{name:"Kade Chandler",pos:"FWD",tier:2,speed:85,skill:80,attack:83,defence:70,contest:74,physicality:76,overall:78},{name:"Kalani White",pos:"RUC",tier:1,speed:40,skill:56,attack:56,defence:56,contest:58,physicality:54,overall:53},{name:"Koltyn Tholstrup",pos:"DEF",tier:1,speed:68,skill:62,attack:56,defence:66,contest:65,physicality:62,overall:63},{name:"Kysaiah Pickett",pos:"MID",tier:2,speed:79,skill:77,attack:75,defence:69,contest:83,physicality:68,overall:75},{name:"Latrelle Pickett",pos:"FWD",tier:1,speed:53,skill:55,attack:62,defence:44,contest:50,physicality:63,overall:54},{name:"Luker Kentfield",pos:"DEF",tier:1,speed:63,skill:62,attack:47,defence:66,contest:58,physicality:67,overall:60},{name:"Matthew Jefferson",pos:"FWD",tier:2,speed:73,skill:72,attack:74,defence:62,contest:66,physicality:64,overall:68},{name:"Max Gawn",pos:"RUC",tier:3,speed:69,skill:82,attack:76,defence:90,contest:90,physicality:84,overall:82},{name:"Max Heath",pos:"RUC",tier:1,speed:40,skill:48,attack:58,defence:54,contest:63,physicality:63,overall:54},{name:"Oscar Berry",pos:"DEF",tier:1,speed:50,skill:58,attack:40,defence:53,contest:46,physicality:48,overall:49},{name:"Paddy Cross",pos:"FWD",tier:2,speed:72,skill:67,attack:85,defence:63,contest:66,physicality:68,overall:70},{name:"Ricky Mentha",pos:"FWD",tier:2,speed:66,skill:71,attack:77,defence:57,contest:65,physicality:61,overall:66},{name:"Riley Onley",pos:"MID",tier:1,speed:60,skill:69,attack:61,defence:57,contest:64,physicality:63,overall:62},{name:"Shane McAdam",pos:"FWD",tier:1,speed:48,skill:51,attack:62,defence:41,contest:51,physicality:53,overall:51},{name:"Steven May",pos:"DEF",tier:2,speed:66,skill:69,attack:65,defence:82,contest:70,physicality:74,overall:71},{name:"Thomas Matthews",pos:"FWD",tier:1,speed:66,skill:56,attack:70,defence:61,contest:67,physicality:64,overall:64},{name:"Tom Campbell",pos:"RUC",tier:1,speed:51,skill:62,attack:61,defence:61,contest:72,physicality:65,overall:62},{name:"Tom McDonald",pos:"DEF",tier:1,speed:57,skill:53,attack:50,defence:61,contest:65,physicality:60,overall:58},{name:"Tom Sparrow",pos:"MID",tier:1,speed:54,skill:55,attack:55,defence:59,contest:57,physicality:57,overall:56},{name:"Trent Rivers",pos:"DEF",tier:1,speed:48,skill:53,attack:43,defence:57,contest:57,physicality:57,overall:52},{name:"Xavier Lindsay",pos:"DEF",tier:1,speed:57,skill:62,attack:48,defence:67,contest:50,physicality:61,overall:58},{name:"Xavier Taylor",pos:"DEF",tier:1,speed:50,skill:60,attack:47,defence:63,contest:51,physicality:49,overall:53}],
+NTH:[{name:"Aidan Corr",pos:"DEF",tier:1,speed:43,skill:48,attack:47,defence:56,contest:45,physicality:53,overall:49},{name:"Bailey Scott",pos:"MID",tier:1,speed:58,skill:59,attack:60,defence:63,contest:59,physicality:62,overall:60},{name:"Blake Thredgold",pos:"DEF",tier:1,speed:48,skill:59,attack:41,defence:63,contest:60,physicality:52,overall:54},{name:"Brayden George",pos:"FWD",tier:2,speed:78,skill:66,attack:76,defence:60,contest:68,physicality:68,overall:69},{name:"Caleb Daniel",pos:"DEF",tier:2,speed:82,skill:84,attack:75,defence:87,contest:82,physicality:77,overall:81},{name:"Callum Coleman-Jones",pos:"RUC",tier:1,speed:59,skill:64,attack:67,defence:63,contest:71,physicality:73,overall:66},{name:"Cameron Zurhaar",pos:"FWD",tier:1,speed:60,skill:54,attack:64,defence:49,contest:49,physicality:50,overall:54},{name:"Charlie Comben",pos:"DEF",tier:1,speed:52,skill:56,attack:45,defence:51,contest:45,physicality:52,overall:50},{name:"Charlie Spargo",pos:"MF",tier:1,speed:55,skill:65,attack:62,defence:49,contest:57,physicality:63,overall:58},{name:"Colby McKercher",pos:"DEF",tier:1,speed:61,skill:56,attack:57,defence:63,contest:67,physicality:65,overall:62},{name:"Cooper Harvey",pos:"FWD",tier:1,speed:67,skill:50,attack:62,defence:46,contest:53,physicality:64,overall:57},{name:"Cooper Trembath",pos:"FWD",tier:1,speed:54,skill:48,attack:56,defence:47,contest:55,physicality:62,overall:54},{name:"Dylan Stephens",pos:"MID",tier:1,speed:60,skill:65,attack:56,defence:52,contest:60,physicality:59,overall:59},{name:"Finn O'Sullivan",pos:"MID",tier:1,speed:75,skill:67,attack:62,defence:64,contest:63,physicality:58,overall:65},{name:"George Wardlaw",pos:"MID",tier:1,speed:60,skill:58,attack:56,defence:57,contest:59,physicality:64,overall:59},{name:"Griffin Logue",pos:"DEF",tier:1,speed:44,skill:50,attack:47,defence:62,contest:52,physicality:56,overall:52},{name:"Harry Sheezel",pos:"MID",tier:1,speed:60,skill:55,attack:50,defence:48,contest:57,physicality:53,overall:54},{name:"Hugo Mikunda",pos:"MID",tier:2,speed:85,skill:79,attack:81,defence:72,contest:77,physicality:75,overall:78},{name:"Jack Darling",pos:"FWD",tier:1,speed:70,skill:56,attack:60,defence:50,contest:52,physicality:61,overall:58},{name:"Jackson Archer",pos:"DEF",tier:1,speed:61,skill:59,attack:51,defence:69,contest:60,physicality:68,overall:61},{name:"Jacob Konstanty",pos:"FWD",tier:1,speed:60,skill:45,attack:54,defence:47,contest:48,physicality:52,overall:51},{name:"Josh Goater",pos:"DEF",tier:1,speed:50,skill:61,attack:52,defence:65,contest:53,physicality:56,overall:56},{name:"Jy Simpkin",pos:"MID",tier:3,speed:87,skill:89,attack:80,defence:82,contest:80,physicality:83,overall:84},{name:"Lachy Brewer",pos:"DEF",tier:1,speed:55,skill:64,attack:48,defence:68,contest:51,physicality:53,overall:56},{name:"Lachy Dovaston",pos:"FWD",tier:1,speed:48,skill:54,attack:63,defence:44,contest:49,physicality:58,overall:53},{name:"Luke Davies-Uniacke",pos:"MID",tier:3,speed:99,skill:91,attack:92,defence:81,contest:99,physicality:93,overall:92},{name:"Luke McDonald",pos:"DEF",tier:1,speed:68,skill:65,attack:52,defence:71,contest:60,physicality:57,overall:62},{name:"Luke Parker",pos:"DEF",tier:1,speed:57,skill:53,attack:45,defence:61,contest:54,physicality:53,overall:54},{name:"Luke Urquhart",pos:"MID",tier:1,speed:61,skill:64,attack:62,defence:68,contest:64,physicality:60,overall:63},{name:"Matt Whitlock",pos:"DEF",tier:1,speed:55,skill:48,attack:48,defence:55,contest:58,physicality:54,overall:53},{name:"Nick Larkey",pos:"FWD",tier:1,speed:47,skill:54,attack:58,defence:41,contest:50,physicality:50,overall:50},{name:"Paul Curtis",pos:"FWD",tier:2,speed:83,skill:66,attack:86,defence:70,contest:75,physicality:78,overall:76},{name:"Riley Hardeman",pos:"DEF",tier:1,speed:56,skill:62,attack:51,defence:66,contest:65,physicality:65,overall:61},{name:"River Stevens",pos:"FWD",tier:1,speed:49,skill:46,attack:63,defence:40,contest:56,physicality:54,overall:51},{name:"Robert Hansen Jr",pos:"MF",tier:2,speed:76,skill:73,attack:81,defence:70,contest:77,physicality:77,overall:76},{name:"Taylor Goad",pos:"RUC",tier:1,speed:40,skill:49,attack:45,defence:55,contest:65,physicality:61,overall:52},{name:"Toby Pink",pos:"DEF",tier:1,speed:53,skill:49,attack:40,defence:52,contest:55,physicality:51,overall:50},{name:"Tom Blamires",pos:"MID",tier:2,speed:67,skill:80,attack:83,defence:79,contest:76,physicality:76,overall:77},{name:"Tom Powell",pos:"FWD",tier:1,speed:61,skill:62,attack:65,defence:52,contest:66,physicality:65,overall:62},{name:"Tristan Xerri",pos:"RUC",tier:1,speed:45,skill:59,attack:54,defence:60,contest:71,physicality:57,overall:58},{name:"Wil Dawson",pos:"DEF",tier:1,speed:59,skill:60,attack:49,defence:65,contest:62,physicality:54,overall:58},{name:"Zac Banch",pos:"FWD",tier:2,speed:74,skill:68,attack:78,defence:70,contest:74,physicality:75,overall:73},{name:"Zac Fisher",pos:"FWD",tier:1,speed:59,skill:61,attack:67,defence:62,contest:59,physicality:72,overall:63},{name:"Zane Duursma",pos:"FWD",tier:1,speed:58,skill:42,attack:54,defence:45,contest:44,physicality:48,overall:48}],
+PTA:[{name:"Aliir Aliir",pos:"DEF",tier:1,speed:70,skill:63,attack:60,defence:66,contest:67,physicality:57,overall:64},{name:"Balyn O'Brien",pos:"DEF",tier:1,speed:69,skill:60,attack:58,defence:75,contest:66,physicality:63,overall:65},{name:"Benny Barrett",pos:"MF",tier:1,speed:55,skill:56,attack:56,defence:54,contest:53,physicality:55,overall:55},{name:"Brandon Zerk-Thatcher",pos:"DEF",tier:2,speed:76,skill:86,attack:69,defence:84,contest:83,physicality:76,overall:79},{name:"Christian Moraes",pos:"FWD",tier:1,speed:56,skill:53,attack:68,defence:48,contest:63,physicality:58,overall:58},{name:"Connor Rozee",pos:"MID",tier:3,speed:82,skill:92,attack:89,defence:91,contest:99,physicality:91,overall:91},{name:"Corey Durdin",pos:"FWD",tier:1,speed:64,skill:60,attack:61,defence:48,contest:52,physicality:54,overall:56},{name:"Dante Visentini",pos:"RUC",tier:1,speed:56,skill:60,attack:63,defence:58,contest:67,physicality:70,overall:62},{name:"Darcy Byrne-Jones",pos:"DEF",tier:2,speed:72,skill:70,attack:69,defence:75,contest:73,physicality:67,overall:71},{name:"Esava Ratugolea",pos:"DEF",tier:1,speed:58,skill:64,attack:48,defence:63,contest:61,physicality:62,overall:59},{name:"Ewan Mackinlay",pos:"MF",tier:2,speed:81,skill:74,attack:77,defence:75,contest:84,physicality:75,overall:78},{name:"Harrison Ramm",pos:"DEF",tier:2,speed:82,skill:83,attack:71,defence:83,contest:84,physicality:73,overall:79},{name:"Ivan Soldo",pos:"RUC",tier:1,speed:44,skill:53,attack:53,defence:56,contest:60,physicality:64,overall:55},{name:"Jack Lukosius",pos:"FWD",tier:1,speed:59,skill:53,attack:64,defence:47,contest:56,physicality:61,overall:57},{name:"Jack Watkins",pos:"MF",tier:1,speed:65,skill:68,attack:61,defence:59,contest:58,physicality:60,overall:62},{name:"Jack Whitlock",pos:"FWD",tier:1,speed:55,skill:49,attack:62,defence:42,contest:54,physicality:48,overall:52},{name:"Jackson Mead",pos:"DEF",tier:1,speed:56,skill:56,attack:48,defence:63,contest:54,physicality:59,overall:56},{name:"Jacob Moss",pos:"DEF",tier:1,speed:58,skill:46,attack:49,defence:63,contest:55,physicality:55,overall:54},{name:"Jacob Wehr",pos:"MID",tier:1,speed:64,skill:54,attack:64,defence:58,contest:59,physicality:64,overall:60},{name:"Jase Burgoyne",pos:"MID",tier:1,speed:47,skill:50,attack:49,defence:48,contest:54,physicality:57,overall:51},{name:"Jason Horne-Francis",pos:"MF",tier:1,speed:52,skill:56,attack:58,defence:47,contest:55,physicality:60,overall:55},{name:"Joe Berry",pos:"FWD",tier:1,speed:65,skill:60,attack:74,defence:59,contest:56,physicality:66,overall:63},{name:"Joe Richards",pos:"FWD",tier:1,speed:60,skill:59,attack:72,defence:54,contest:65,physicality:64,overall:62},{name:"Jordon Sweet",pos:"RUC",tier:1,speed:52,skill:53,attack:53,defence:64,contest:69,physicality:72,overall:60},{name:"Josh Lai",pos:"DEF",tier:1,speed:50,skill:55,attack:44,defence:54,contest:43,physicality:53,overall:50},{name:"Josh Sinn",pos:"DEF",tier:1,speed:54,skill:61,attack:48,defence:62,contest:52,physicality:51,overall:55},{name:"Kane Farrell",pos:"DEF",tier:1,speed:54,skill:53,attack:45,defence:64,contest:56,physicality:59,overall:55},{name:"Lachie Jones",pos:"DEF",tier:1,speed:66,skill:65,attack:62,defence:69,contest:64,physicality:66,overall:65},{name:"Logan Evans",pos:"DEF",tier:1,speed:51,skill:61,attack:48,defence:57,contest:52,physicality:52,overall:54},{name:"Mani Liddy",pos:"MID",tier:1,speed:52,skill:49,attack:58,defence:54,contest:53,physicality:49,overall:52},{name:"Miles Bergman",pos:"DEF",tier:1,speed:53,skill:54,attack:41,defence:60,contest:53,physicality:44,overall:51},{name:"Mitch Georgiades",pos:"FWD",tier:1,speed:47,skill:41,attack:49,defence:45,contest:42,physicality:50,overall:46},{name:"Mitch Zadow",pos:"FWD",tier:1,speed:54,skill:58,attack:62,defence:40,contest:46,physicality:57,overall:53},{name:"Ollie Lord",pos:"FWD",tier:1,speed:52,skill:53,attack:58,defence:40,contest:50,physicality:51,overall:51},{name:"Ollie Wines",pos:"MID",tier:3,speed:89,skill:88,attack:90,defence:94,contest:87,physicality:97,overall:91},{name:"Sam Powell-Pepper",pos:"FWD",tier:1,speed:55,skill:46,attack:63,defence:40,contest:50,physicality:49,overall:50},{name:"Todd Marshall",pos:"DEF",tier:1,speed:64,skill:54,attack:49,defence:65,contest:55,physicality:53,overall:57},{name:"Tom Anastasopoulos",pos:"MID",tier:1,speed:63,skill:75,attack:65,defence:60,contest:62,physicality:57,overall:64},{name:"Tom Cochrane",pos:"FWD",tier:1,speed:61,skill:47,attack:52,defence:48,contest:51,physicality:47,overall:51},{name:"Will Brodie",pos:"MID",tier:1,speed:53,skill:55,attack:55,defence:49,contest:54,physicality:59,overall:54},{name:"Will Lorenz",pos:"MID",tier:1,speed:48,skill:59,attack:55,defence:59,contest:62,physicality:57,overall:57},{name:"Willem Drew",pos:"MID",tier:1,speed:48,skill:49,attack:48,defence:58,contest:52,physicality:50,overall:51},{name:"Xavier Walsh",pos:"DEF",tier:1,speed:62,skill:68,attack:51,defence:70,contest:70,physicality:62,overall:64},{name:"Zak Butters",pos:"MID",tier:3,speed:82,skill:83,attack:86,defence:83,contest:89,physicality:85,overall:85}],
+RIC:[{name:"Ben Miller",pos:"DEF",tier:2,speed:84,skill:84,attack:71,defence:82,contest:73,physicality:74,overall:78},{name:"Campbell Gray",pos:"DEF",tier:1,speed:46,skill:45,attack:43,defence:61,contest:51,physicality:56,overall:50},{name:"Dion Prestia",pos:"MID",tier:1,speed:61,skill:71,attack:71,defence:61,contest:70,physicality:56,overall:65},{name:"Harry Armstrong",pos:"FWD",tier:2,speed:76,skill:84,attack:84,defence:63,contest:75,physicality:79,overall:77},{name:"Hugo Ralphsmith",pos:"MID",tier:1,speed:60,skill:53,attack:64,defence:63,contest:65,physicality:66,overall:62},{name:"Jack Ross",pos:"MID",tier:1,speed:59,skill:55,attack:58,defence:59,contest:65,physicality:56,overall:59},{name:"Jacob Hopper",pos:"MID",tier:1,speed:58,skill:58,attack:57,defence:64,contest:61,physicality:70,overall:61},{name:"James Trezise",pos:"MID",tier:2,speed:74,skill:74,attack:84,defence:76,contest:79,physicality:76,overall:77},{name:"Jasper Alger",pos:"FWD",tier:1,speed:52,skill:64,attack:59,defence:49,contest:58,physicality:57,overall:56},{name:"Jayden Short",pos:"DEF",tier:1,speed:49,skill:57,attack:50,defence:67,contest:57,physicality:51,overall:55},{name:"Jonty Faull",pos:"FWD",tier:2,speed:78,skill:68,attack:80,defence:69,contest:75,physicality:68,overall:73},{name:"Josh Gibcus",pos:"DEF",tier:1,speed:54,skill:64,attack:57,defence:64,contest:69,physicality:57,overall:61},{name:"Josh Smillie",pos:"MID",tier:1,speed:67,skill:60,attack:64,defence:61,contest:63,physicality:61,overall:63},{name:"Judson Clarke",pos:"DEF",tier:1,speed:48,skill:57,attack:44,defence:57,contest:52,physicality:56,overall:52},{name:"Kaleb Smith",pos:"DEF",tier:1,speed:66,skill:69,attack:58,defence:67,contest:59,physicality:70,overall:65},{name:"Kane McAuliffe",pos:"MID",tier:1,speed:52,skill:56,attack:58,defence:52,contest:59,physicality:51,overall:55},{name:"Liam Fawcett",pos:"FWD",tier:1,speed:57,skill:52,attack:61,defence:51,contest:53,physicality:67,overall:57},{name:"Luke Trainor",pos:"DEF",tier:1,speed:56,skill:60,attack:58,defence:67,contest:59,physicality:57,overall:60},{name:"Maurice Rioli",pos:"FWD",tier:2,speed:73,skill:78,attack:84,defence:60,contest:75,physicality:72,overall:74},{name:"Mykelti Lefau",pos:"FWD",tier:1,speed:57,skill:56,attack:73,defence:53,contest:60,physicality:66,overall:61},{name:"Nathan Broad",pos:"DEF",tier:1,speed:60,skill:66,attack:52,defence:75,contest:70,physicality:59,overall:64},{name:"Nick Vlastuin",pos:"DEF",tier:1,speed:68,skill:64,attack:51,defence:73,contest:58,physicality:67,overall:64},{name:"Noah Balta",pos:"DEF",tier:1,speed:55,skill:56,attack:48,defence:63,contest:51,physicality:54,overall:54},{name:"Noah Roberts-Thomson",pos:"MID",tier:2,speed:75,skill:79,attack:77,defence:73,contest:77,physicality:82,overall:77},{name:"Oliver Hayes-Brown",pos:"RUC",tier:1,speed:41,skill:51,attack:53,defence:56,contest:63,physicality:54,overall:53},{name:"Patrick Retschko",pos:"MID",tier:2,speed:80,skill:79,attack:76,defence:73,contest:84,physicality:79,overall:78},{name:"Rhyan Mansell",pos:"FWD",tier:1,speed:52,skill:60,attack:60,defence:48,contest:54,physicality:52,overall:54},{name:"Sam Banks",pos:"DEF",tier:1,speed:66,skill:63,attack:56,defence:68,contest:64,physicality:65,overall:64},{name:"Sam Cumming",pos:"MF",tier:2,speed:79,skill:83,attack:79,defence:65,contest:78,physicality:71,overall:76},{name:"Sam Grlj",pos:"DEF",tier:1,speed:45,skill:57,attack:40,defence:58,contest:51,physicality:59,overall:52},{name:"Sam Lalor",pos:"MID",tier:1,speed:59,skill:58,attack:67,defence:51,contest:67,physicality:60,overall:60},{name:"Samson Ryan",pos:"RUC",tier:1,speed:48,skill:60,attack:68,defence:65,contest:69,physicality:72,overall:64},{name:"Seth Campbell",pos:"FWD",tier:2,speed:79,skill:81,attack:80,defence:70,contest:81,physicality:84,overall:79},{name:"Steely Green",pos:"FWD",tier:1,speed:53,skill:61,attack:63,defence:48,contest:61,physicality:62,overall:58},{name:"Taj Hotton",pos:"FWD",tier:1,speed:61,skill:57,attack:76,defence:54,contest:60,physicality:69,overall:63},{name:"Tim Taranto",pos:"MID",tier:2,speed:76,skill:83,attack:84,defence:78,contest:82,physicality:75,overall:80},{name:"Toby Nankervis",pos:"RUC",tier:1,speed:41,skill:51,attack:46,defence:57,contest:58,physicality:54,overall:51},{name:"Tom Brown",pos:"DEF",tier:2,speed:85,skill:73,attack:71,defence:80,contest:78,physicality:76,overall:77},{name:"Tom Burton",pos:"FWD",tier:1,speed:52,skill:52,attack:52,defence:42,contest:51,physicality:58,overall:51},{name:"Tom Lynch",pos:"FWD",tier:2,speed:65,skill:68,attack:75,defence:51,contest:70,physicality:71,overall:67},{name:"Tom Sims",pos:"FWD",tier:1,speed:67,skill:60,attack:58,defence:54,contest:60,physicality:57,overall:59},{name:"Tyler Sonsie",pos:"MF",tier:1,speed:52,skill:61,attack:61,defence:47,contest:56,physicality:58,overall:56},{name:"Zane Peucker",pos:"FWD",tier:1,speed:56,skill:49,attack:53,defence:45,contest:47,physicality:50,overall:50}],
+STK:[{name:"Alex Dodson",pos:"RUC",tier:1,speed:49,skill:53,attack:52,defence:54,contest:65,physicality:64,overall:56},{name:"Alix Tauru",pos:"DEF",tier:2,speed:61,skill:71,attack:59,defence:76,contest:64,physicality:71,overall:67},{name:"Angus Hastie",pos:"DEF",tier:1,speed:48,skill:60,attack:48,defence:64,contest:62,physicality:51,overall:56},{name:"Anthony Caminiti",pos:"DEF",tier:1,speed:66,skill:60,attack:61,defence:73,contest:68,physicality:72,overall:67},{name:"Bradley Hill",pos:"MID",tier:1,speed:58,skill:69,attack:70,defence:60,contest:67,physicality:73,overall:66},{name:"Callum Wilkie",pos:"DEF",tier:1,speed:48,skill:58,attack:47,defence:62,contest:46,physicality:56,overall:53},{name:"Charlie Banfield",pos:"MF",tier:1,speed:64,skill:63,attack:55,defence:49,contest:59,physicality:64,overall:59},{name:"Cooper Sharman",pos:"FWD",tier:1,speed:58,skill:57,attack:61,defence:53,contest:64,physicality:61,overall:59},{name:"Dan Butler",pos:"FWD",tier:1,speed:46,skill:47,attack:62,defence:40,contest:50,physicality:46,overall:48},{name:"Darcy Wilson",pos:"MF",tier:1,speed:60,skill:57,attack:61,defence:54,contest:62,physicality:58,overall:59},{name:"Dougal Howard",pos:"DEF",tier:1,speed:52,skill:53,attack:40,defence:59,contest:43,physicality:53,overall:50},{name:"Eamonn Armstrong",pos:"DEF",tier:1,speed:43,skill:56,attack:40,defence:58,contest:53,physicality:46,overall:49},{name:"Hugh Boxshall",pos:"MID",tier:1,speed:53,skill:63,attack:66,defence:58,contest:62,physicality:63,overall:61},{name:"Hugo Garcia",pos:"MID",tier:2,speed:77,skill:70,attack:73,defence:65,contest:69,physicality:74,overall:71},{name:"Hunter Clark",pos:"DEF",tier:1,speed:66,skill:70,attack:55,defence:72,contest:70,physicality:72,overall:68},{name:"Isaac Keeler",pos:"FWD",tier:2,speed:82,skill:68,attack:84,defence:74,contest:76,physicality:73,overall:76},{name:"Jack Carroll",pos:"DEF",tier:1,speed:52,skill:51,attack:44,defence:52,contest:47,physicality:46,overall:49},{name:"Jack Higgins",pos:"FWD",tier:1,speed:60,skill:64,attack:69,defence:57,contest:59,physicality:56,overall:61},{name:"Jack Macrae",pos:"MID",tier:1,speed:57,skill:58,attack:53,defence:51,contest:64,physicality:50,overall:56},{name:"Jack Silvagni",pos:"DEF",tier:2,speed:80,skill:79,attack:70,defence:78,contest:73,physicality:79,overall:76},{name:"Jack Sinclair",pos:"DEF",tier:3,speed:81,skill:86,attack:76,defence:93,contest:93,physicality:91,overall:87},{name:"James Barrat",pos:"DEF",tier:1,speed:61,skill:55,attack:56,defence:64,contest:54,physicality:57,overall:58},{name:"Kobe McDonald",pos:"DEF",tier:1,speed:56,skill:56,attack:49,defence:62,contest:58,physicality:59,overall:57},{name:"Kye Fincher",pos:"MID",tier:1,speed:64,skill:60,attack:61,defence:51,contest:57,physicality:51,overall:57},{name:"Lance Collard",pos:"FWD",tier:1,speed:57,skill:60,attack:59,defence:53,contest:52,physicality:52,overall:56},{name:"Liam Henry",pos:"FWD",tier:1,speed:68,skill:64,attack:65,defence:48,contest:62,physicality:57,overall:61},{name:"Liam O'Connell",pos:"DEF",tier:1,speed:48,skill:56,attack:48,defence:55,contest:59,physicality:50,overall:53},{name:"Liam Ryan",pos:"FWD",tier:2,speed:69,skill:68,attack:79,defence:63,contest:61,physicality:74,overall:69},{name:"Liam Stocker",pos:"DEF",tier:1,speed:56,skill:53,attack:40,defence:60,contest:52,physicality:49,overall:52},{name:"Marcus Windhager",pos:"DEF",tier:1,speed:47,skill:57,attack:46,defence:65,contest:57,physicality:56,overall:55},{name:"Mason Wood",pos:"MID",tier:1,speed:57,skill:61,attack:52,defence:58,contest:60,physicality:55,overall:57},{name:"Mattaes Phillipou",pos:"MF",tier:1,speed:63,skill:66,attack:69,defence:64,contest:61,physicality:71,overall:66},{name:"Max Hall",pos:"FWD",tier:1,speed:52,skill:59,attack:55,defence:40,contest:54,physicality:57,overall:53},{name:"Max King",pos:"FWD",tier:1,speed:62,skill:55,attack:52,defence:40,contest:56,physicality:54,overall:53},{name:"Mitch Owens",pos:"FWD",tier:1,speed:62,skill:55,attack:56,defence:51,contest:51,physicality:59,overall:56},{name:"Nasiah Wanganeen-Milera",pos:"MID",tier:2,speed:79,skill:85,attack:77,defence:67,contest:72,physicality:77,overall:76},{name:"Paddy Dow",pos:"MID",tier:1,speed:66,skill:69,attack:70,defence:66,contest:72,physicality:63,overall:68},{name:"Patrick Said",pos:"FWD",tier:1,speed:66,skill:54,attack:68,defence:49,contest:58,physicality:58,overall:59},{name:"Rowan Marshall",pos:"RUC",tier:3,speed:76,skill:81,attack:80,defence:91,contest:93,physicality:90,overall:85},{name:"Ryan Byrnes",pos:"DEF",tier:1,speed:56,skill:45,attack:43,defence:53,contest:46,physicality:44,overall:48},{name:"Sam Flanders",pos:"MID",tier:1,speed:56,skill:57,attack:55,defence:52,contest:60,physicality:53,overall:56},{name:"Tobie Travaglia",pos:"DEF",tier:1,speed:63,skill:67,attack:50,defence:71,contest:66,physicality:63,overall:63},{name:"Tom De Koning",pos:"RUC",tier:1,speed:46,skill:56,attack:49,defence:46,contest:59,physicality:51,overall:51}],
+SYD:[{name:"Angus Sheldrick",pos:"MID",tier:1,speed:51,skill:51,attack:59,defence:49,contest:52,physicality:52,overall:52},{name:"Billy Cootee",pos:"FWD",tier:1,speed:60,skill:45,attack:64,defence:49,contest:55,physicality:61,overall:56},{name:"Braeden Campbell",pos:"FWD",tier:1,speed:51,skill:56,attack:59,defence:42,contest:55,physicality:52,overall:52},{name:"Brodie Grundy",pos:"RUC",tier:1,speed:53,skill:53,attack:63,defence:63,contest:66,physicality:68,overall:61},{name:"Caiden Cleary",pos:"FWD",tier:1,speed:56,skill:58,attack:63,defence:50,contest:57,physicality:52,overall:56},{name:"Callum Mills",pos:"DEF",tier:3,speed:84,skill:86,attack:79,defence:90,contest:81,physicality:80,overall:83},{name:"Chad Warner",pos:"MF",tier:3,speed:82,skill:83,attack:87,defence:77,contest:89,physicality:78,overall:83},{name:"Charlie Curnow",pos:"FWD",tier:1,speed:63,skill:46,attack:65,defence:46,contest:53,physicality:60,overall:56},{name:"Corey Warner",pos:"FWD",tier:1,speed:62,skill:55,attack:75,defence:58,contest:65,physicality:64,overall:63},{name:"Dane Rampe",pos:"DEF",tier:1,speed:52,skill:65,attack:55,defence:68,contest:57,physicality:66,overall:60},{name:"Errol Gulden",pos:"MF",tier:3,speed:94,skill:90,attack:94,defence:80,contest:84,physicality:88,overall:88},{name:"Harry Cunningham",pos:"DEF",tier:1,speed:56,skill:48,attack:43,defence:61,contest:58,physicality:49,overall:52},{name:"Harry Kyle",pos:"DEF",tier:2,speed:68,skill:71,attack:63,defence:76,contest:66,physicality:65,overall:68},{name:"Hayden McLean",pos:"FWD",tier:1,speed:46,skill:56,attack:48,defence:40,contest:50,physicality:46,overall:48},{name:"Isaac Heeney",pos:"MID",tier:3,speed:84,skill:90,attack:82,defence:75,contest:81,physicality:87,overall:83},{name:"Jai Serong",pos:"MID",tier:1,speed:58,skill:66,attack:62,defence:55,contest:64,physicality:58,overall:60},{name:"Jake Lloyd",pos:"FWD",tier:2,speed:73,skill:77,attack:80,defence:69,contest:72,physicality:74,overall:74},{name:"James Jordon",pos:"MF",tier:1,speed:68,skill:63,attack:72,defence:60,contest:72,physicality:71,overall:68},{name:"James Rowbottom",pos:"MID",tier:1,speed:49,skill:56,attack:56,defence:58,contest:62,physicality:51,overall:55},{name:"Jesse Dattoli",pos:"FWD",tier:1,speed:71,skill:66,attack:76,defence:57,contest:65,physicality:70,overall:68},{name:"Jevan Phillipou",pos:"MID",tier:1,speed:48,skill:58,attack:56,defence:43,contest:60,physicality:45,overall:52},{name:"Joel Amartey",pos:"FWD",tier:2,speed:81,skill:67,attack:74,defence:62,contest:68,physicality:73,overall:71},{name:"Joel Hamling",pos:"DEF",tier:1,speed:53,skill:50,attack:46,defence:60,contest:48,physicality:55,overall:52},{name:"Justin McInerney",pos:"MID",tier:2,speed:67,skill:80,attack:72,defence:62,contest:70,physicality:78,overall:72},{name:"Lewis Melican",pos:"DEF",tier:1,speed:57,skill:52,attack:40,defence:61,contest:46,physicality:54,overall:52},{name:"Liam Hetherton",pos:"FWD",tier:1,speed:50,skill:52,attack:56,defence:44,contest:59,physicality:56,overall:53},{name:"Logan McDonald",pos:"FWD",tier:1,speed:67,skill:58,attack:68,defence:45,contest:63,physicality:66,overall:61},{name:"Malcolm Rosas",pos:"FWD",tier:1,speed:54,skill:53,attack:55,defence:48,contest:46,physicality:48,overall:51},{name:"Matt Roberts",pos:"MID",tier:1,speed:62,skill:63,attack:60,defence:48,contest:57,physicality:53,overall:57},{name:"Max King",pos:"FWD",tier:1,speed:48,skill:59,attack:55,defence:41,contest:44,physicality:58,overall:51},{name:"Ned Bowman",pos:"FWD",tier:1,speed:59,skill:62,attack:62,defence:50,contest:55,physicality:63,overall:58},{name:"Nick Blakey",pos:"DEF",tier:1,speed:64,skill:63,attack:53,defence:70,contest:66,physicality:53,overall:62},{name:"Noah Chamberlain",pos:"FWD",tier:1,speed:53,skill:60,attack:66,defence:53,contest:51,physicality:61,overall:57},{name:"Patrick Snell",pos:"DEF",tier:1,speed:63,skill:58,attack:54,defence:69,contest:53,physicality:64,overall:60},{name:"Peter Ladhams",pos:"RUC",tier:2,speed:56,skill:60,attack:65,defence:72,contest:77,physicality:68,overall:66},{name:"Riak Andrew",pos:"DEF",tier:1,speed:60,skill:53,attack:46,defence:59,contest:57,physicality:52,overall:54},{name:"Riley Bice",pos:"DEF",tier:1,speed:61,skill:60,attack:45,defence:60,contest:60,physicality:52,overall:56},{name:"Sam Wicks",pos:"DEF",tier:2,speed:68,skill:67,attack:60,defence:81,contest:69,physicality:66,overall:68},{name:"Taylor Adams",pos:"MID",tier:1,speed:47,skill:63,attack:57,defence:45,contest:62,physicality:46,overall:53},{name:"Tom Hanily",pos:"FWD",tier:2,speed:76,skill:78,attack:80,defence:69,contest:67,physicality:73,overall:74},{name:"Tom McCartin",pos:"DEF",tier:1,speed:64,skill:65,attack:55,defence:76,contest:61,physicality:59,overall:63},{name:"Tom Papley",pos:"FWD",tier:1,speed:71,skill:54,attack:69,defence:51,contest:59,physicality:69,overall:62},{name:"William Edwards",pos:"DEF",tier:1,speed:59,skill:49,attack:49,defence:63,contest:53,physicality:59,overall:55},{name:"William Green",pos:"RUC",tier:1,speed:43,skill:53,attack:45,defence:52,contest:62,physicality:61,overall:53}],
+WCE:[{name:"Archer Reid",pos:"FWD",tier:2,speed:71,skill:67,attack:72,defence:60,contest:69,physicality:68,overall:68},{name:"Bailey J. Williams",pos:"RUC",tier:1,speed:52,skill:56,attack:59,defence:67,contest:71,physicality:66,overall:62},{name:"Bo Allan",pos:"MID",tier:2,speed:80,skill:74,attack:78,defence:68,contest:80,physicality:73,overall:76},{name:"Brady Hough",pos:"DEF",tier:1,speed:55,skill:59,attack:50,defence:65,contest:54,physicality:53,overall:56},{name:"Brandon Starcevich",pos:"DEF",tier:1,speed:59,skill:59,attack:40,defence:57,contest:53,physicality:54,overall:54},{name:"Clay Hall",pos:"MID",tier:1,speed:75,skill:71,attack:73,defence:65,contest:67,physicality:66,overall:70},{name:"Cooper Duff-Tytler",pos:"FWD",tier:1,speed:56,skill:44,attack:60,defence:40,contest:41,physicality:47,overall:48},{name:"Deven Robertson",pos:"MID",tier:1,speed:60,skill:74,attack:71,defence:62,contest:66,physicality:68,overall:67},{name:"Elijah Hewett",pos:"FWD",tier:1,speed:68,skill:68,attack:65,defence:56,contest:58,physicality:65,overall:63},{name:"Elliot Yeo",pos:"MF",tier:2,speed:77,skill:79,attack:83,defence:74,contest:73,physicality:83,overall:78},{name:"Finlay Macrae",pos:"MID",tier:1,speed:68,skill:70,attack:67,defence:63,contest:64,physicality:54,overall:64},{name:"Fred Rodriguez",pos:"MID",tier:1,speed:65,skill:58,attack:67,defence:53,contest:66,physicality:61,overall:62},{name:"Hamish Davis",pos:"MID",tier:1,speed:56,skill:59,attack:59,defence:59,contest:62,physicality:64,overall:60},{name:"Harley Reid",pos:"MID",tier:3,speed:87,skill:89,attack:91,defence:81,contest:91,physicality:89,overall:88},{name:"Harry Barnett",pos:"RUC",tier:1,speed:57,skill:65,attack:57,defence:66,contest:74,physicality:68,overall:64},{name:"Harry Edwards",pos:"DEF",tier:2,speed:69,skill:69,attack:60,defence:77,contest:78,physicality:70,overall:70},{name:"Harry Schoenberg",pos:"FWD",tier:1,speed:51,skill:47,attack:56,defence:40,contest:43,physicality:46,overall:47},{name:"Harvey Johnston",pos:"DEF",tier:2,speed:66,skill:68,attack:67,defence:84,contest:80,physicality:69,overall:72},{name:"Jack Graham",pos:"MID",tier:1,speed:48,skill:61,attack:53,defence:49,contest:54,physicality:55,overall:53},{name:"Jack Hutchinson",pos:"MID",tier:1,speed:50,skill:54,attack:49,defence:46,contest:61,physicality:57,overall:53},{name:"Jack Williams",pos:"FWD",tier:2,speed:81,skill:77,attack:79,defence:60,contest:71,physicality:73,overall:74},{name:"Jacob Newton",pos:"FWD",tier:1,speed:65,skill:71,attack:75,defence:61,contest:67,physicality:69,overall:68},{name:"Jake Miles-Wrency",pos:"DEF",tier:1,speed:66,skill:65,attack:60,defence:76,contest:63,physicality:72,overall:67},{name:"Jake Waterman",pos:"FWD",tier:1,speed:63,skill:62,attack:61,defence:44,contest:53,physicality:52,overall:56},{name:"Jamie Cripps",pos:"FWD",tier:1,speed:58,skill:53,attack:59,defence:45,contest:44,physicality:58,overall:53},{name:"Jobe Shanahan",pos:"FWD",tier:2,speed:88,skill:79,attack:78,defence:75,contest:76,physicality:85,overall:80},{name:"Josh Lindsay",pos:"DEF",tier:1,speed:47,skill:58,attack:48,defence:61,contest:56,physicality:58,overall:55},{name:"Liam Baker",pos:"FWD",tier:1,speed:55,skill:59,attack:61,defence:43,contest:51,physicality:51,overall:53},{name:"Liam Duggan",pos:"DEF",tier:1,speed:63,skill:62,attack:52,defence:62,contest:54,physicality:60,overall:59},{name:"Lucca Grego",pos:"DEF",tier:1,speed:61,skill:54,attack:45,defence:61,contest:53,physicality:55,overall:55},{name:"Malakai Champion",pos:"FWD",tier:1,speed:71,skill:62,attack:73,defence:56,contest:61,physicality:60,overall:64},{name:"Matt Flynn",pos:"RUC",tier:1,speed:40,skill:50,attack:42,defence:47,contest:56,physicality:54,overall:48},{name:"Matthew Owies",pos:"FWD",tier:1,speed:57,skill:61,attack:63,defence:49,contest:54,physicality:64,overall:58},{name:"Milan Murdock",pos:"FWD",tier:1,speed:65,skill:68,attack:66,defence:53,contest:64,physicality:68,overall:64},{name:"Noah Long",pos:"FWD",tier:1,speed:49,skill:43,attack:54,defence:47,contest:48,physicality:46,overall:48},{name:"Reuben Ginbey",pos:"DEF",tier:1,speed:51,skill:61,attack:45,defence:62,contest:61,physicality:48,overall:55},{name:"Rhett Bazzo",pos:"DEF",tier:1,speed:59,skill:62,attack:50,defence:61,contest:61,physicality:50,overall:57},{name:"Ryan Maric",pos:"MID",tier:1,speed:61,skill:54,attack:55,defence:51,contest:60,physicality:54,overall:56},{name:"Sam Allen",pos:"MF",tier:2,speed:65,skill:74,attack:75,defence:67,contest:65,physicality:68,overall:69},{name:"Sandy Brock",pos:"DEF",tier:1,speed:55,skill:57,attack:45,defence:63,contest:53,physicality:55,overall:55},{name:"Tim Kelly",pos:"MID",tier:1,speed:52,skill:60,attack:67,defence:56,contest:66,physicality:55,overall:59},{name:"Tom Cole",pos:"DEF",tier:1,speed:47,skill:50,attack:52,defence:65,contest:61,physicality:59,overall:56},{name:"Tom Gross",pos:"MF",tier:1,speed:54,skill:48,attack:57,defence:43,contest:57,physicality:56,overall:52},{name:"Tom McCarthy",pos:"DEF",tier:1,speed:42,skill:49,attack:47,defence:54,contest:55,physicality:52,overall:50},{name:"Tylah Williams",pos:"FWD",tier:1,speed:62,skill:51,attack:57,defence:45,contest:56,physicality:57,overall:55},{name:"Tylar Young",pos:"DEF",tier:1,speed:60,skill:57,attack:56,defence:70,contest:68,physicality:59,overall:62},{name:"Tyler Brockman",pos:"FWD",tier:1,speed:59,skill:55,attack:57,defence:40,contest:49,physicality:55,overall:52},{name:"Tyrell Dewar",pos:"MID",tier:1,speed:64,skill:61,attack:55,defence:58,contest:59,physicality:55,overall:59},{name:"Willem Duursma",pos:"MID",tier:2,speed:88,skill:79,attack:75,defence:79,contest:78,physicality:85,overall:81}],
+WBD:[{name:"Aaron Naughton",pos:"FWD",tier:1,speed:62,skill:62,attack:56,defence:53,contest:58,physicality:59,overall:58},{name:"Adam Treloar",pos:"MF",tier:3,speed:92,skill:90,attack:85,defence:75,contest:89,physicality:93,overall:87},{name:"Arthur Jones",pos:"FWD",tier:1,speed:60,skill:49,attack:65,defence:48,contest:60,physicality:56,overall:56},{name:"Bailey Dale",pos:"DEF",tier:1,speed:59,skill:67,attack:55,defence:71,contest:64,physicality:68,overall:64},{name:"Bailey Williams",pos:"MID",tier:1,speed:61,skill:50,attack:48,defence:58,contest:52,physicality:50,overall:53},{name:"Buku Khamis",pos:"DEF",tier:2,speed:64,skill:71,attack:60,defence:73,contest:64,physicality:73,overall:68},{name:"Cody Weightman",pos:"FWD",tier:1,speed:70,skill:68,attack:69,defence:56,contest:61,physicality:59,overall:64},{name:"Connor Budarick",pos:"DEF",tier:1,speed:49,skill:50,attack:46,defence:65,contest:63,physicality:51,overall:54},{name:"Cooper Hynes",pos:"FWD",tier:1,speed:55,skill:54,attack:54,defence:46,contest:52,physicality:44,overall:51},{name:"Ed Richards",pos:"MID",tier:2,speed:82,skill:70,attack:80,defence:67,contest:84,physicality:75,overall:76},{name:"Harvey Gallagher",pos:"MID",tier:1,speed:64,skill:54,attack:52,defence:59,contest:56,physicality:60,overall:58},{name:"James Harmes",pos:"MID",tier:1,speed:65,skill:66,attack:69,defence:69,contest:71,physicality:71,overall:68},{name:"James O'Donnell",pos:"DEF",tier:1,speed:65,skill:65,attack:57,defence:68,contest:55,physicality:56,overall:61},{name:"Jedd Busslinger",pos:"DEF",tier:1,speed:69,skill:68,attack:58,defence:70,contest:68,physicality:69,overall:67},{name:"Joel Freijah",pos:"MF",tier:1,speed:66,skill:63,attack:64,defence:56,contest:62,physicality:68,overall:63},{name:"Jordan Croft",pos:"FWD",tier:1,speed:60,skill:56,attack:64,defence:55,contest:58,physicality:64,overall:60},{name:"Josh Dolan",pos:"FWD",tier:1,speed:71,skill:66,attack:62,defence:58,contest:54,physicality:61,overall:62},{name:"Lachie Jaques",pos:"DEF",tier:1,speed:60,skill:63,attack:52,defence:71,contest:62,physicality:62,overall:62},{name:"Lachlan Bramble",pos:"DEF",tier:2,speed:66,skill:69,attack:62,defence:77,contest:70,physicality:70,overall:69},{name:"Lachlan Carmichael",pos:"DEF",tier:1,speed:55,skill:49,attack:40,defence:54,contest:48,physicality:49,overall:49},{name:"Lachlan McNeil",pos:"FWD",tier:2,speed:71,skill:69,attack:81,defence:58,contest:62,physicality:73,overall:69},{name:"Lachlan Smith",pos:"RUC",tier:1,speed:48,skill:45,attack:55,defence:52,contest:64,physicality:54,overall:53},{name:"Laitham Vandermeer",pos:"FWD",tier:1,speed:55,skill:44,attack:62,defence:48,contest:52,physicality:52,overall:52},{name:"Louis Emmett",pos:"RUC",tier:1,speed:44,skill:44,attack:44,defence:55,contest:58,physicality:53,overall:50},{name:"Luke Cleary",pos:"DEF",tier:2,speed:66,skill:73,attack:65,defence:79,contest:62,physicality:72,overall:70},{name:"Luke Kennedy",pos:"MID",tier:1,speed:55,skill:66,attack:65,defence:54,contest:64,physicality:58,overall:60},{name:"Marcus Bontempelli",pos:"MID",tier:3,speed:84,skill:84,attack:79,defence:74,contest:89,physicality:86,overall:83},{name:"Matthew Kennedy",pos:"MID",tier:2,speed:89,skill:76,attack:77,defence:77,contest:80,physicality:83,overall:80},{name:"Michael Sellwood",pos:"DEF",tier:1,speed:52,skill:60,attack:55,defence:61,contest:61,physicality:59,overall:58},{name:"Nick Coffield",pos:"DEF",tier:1,speed:68,skill:61,attack:50,defence:65,contest:62,physicality:63,overall:62},{name:"Oskar Baker",pos:"FWD",tier:1,speed:61,skill:68,attack:63,defence:48,contest:53,physicality:59,overall:59},{name:"Rhylee West",pos:"FWD",tier:1,speed:55,skill:53,attack:68,defence:49,contest:56,physicality:58,overall:56},{name:"Riley Garcia",pos:"MF",tier:1,speed:66,skill:63,attack:68,defence:50,contest:67,physicality:59,overall:62},{name:"Rory Lobb",pos:"DEF",tier:1,speed:65,skill:63,attack:49,defence:69,contest:54,physicality:67,overall:61},{name:"Ryan Gardner",pos:"DEF",tier:1,speed:55,skill:66,attack:48,defence:63,contest:65,physicality:54,overall:58},{name:"Ryley Sanders",pos:"MID",tier:1,speed:55,skill:49,attack:54,defence:57,contest:63,physicality:49,overall:54},{name:"Sam Darcy",pos:"FWD",tier:1,speed:58,skill:65,attack:66,defence:59,contest:63,physicality:61,overall:62},{name:"Sam Davidson",pos:"MID",tier:1,speed:66,skill:76,attack:70,defence:69,contest:65,physicality:58,overall:67},{name:"Tim English",pos:"RUC",tier:3,speed:74,skill:84,attack:85,defence:86,contest:88,physicality:87,overall:84},{name:"Tom Liberatore",pos:"MID",tier:1,speed:57,skill:62,attack:54,defence:58,contest:66,physicality:51,overall:58},{name:"Will Darcy",pos:"DEF",tier:1,speed:59,skill:64,attack:45,defence:59,contest:55,physicality:64,overall:58},{name:"Will Lewis",pos:"FWD",tier:2,speed:74,skill:76,attack:80,defence:68,contest:65,physicality:72,overall:72},{name:"Zac Walker",pos:"DEF",tier:1,speed:59,skill:62,attack:56,defence:76,contest:67,physicality:68,overall:65}]};
+
+function buildRosters(){
+  rosters={};
+  CLUBS.forEach(c=>{
+    rosters[c.id]=(RD[c.id]||[]).map(p=>({...p,focus:'Skill',xpSpent:0,
+      sGoals:0,sKicks:0,sHandballs:0,sMarks:0,sTackles:0,
+      goals:0,behinds:0,kicks:0,handballs:0,marks:0,tackles:0,hitouts:0}));
+  });
+}
+buildRosters();
+
+function renderClubSel(){
+  const g=document.getElementById('club-sel-grid');
+  g.innerHTML=CLUBS.map(c=>{
+    const r=RD[c.id]||[];
+    const avg=r.length?Math.round(r.reduce((s,p)=>s+p.overall,0)/r.length):65;
+    return `<div class="club-card${c.id==='WCE'?' selected':''}" id="cc-${c.id}" onclick="pickClub('${c.id}')">
+      <div style="width:28px;height:28px;border-radius:50%;background:${c.colour};margin:0 auto 6px;"></div>
+      <div class="cn">${c.name}</div><div class="ck">${c.nick}</div>
+      <div class="co">OVR ${avg}</div></div>`;
+  }).join('');
+  document.getElementById('btn-start-season').disabled=false;
+}
+
+let _chosen='WCE';
+function pickClub(id){
+  _chosen=id;
+  document.querySelectorAll('.club-card').forEach(el=>el.classList.remove('selected'));
+  document.getElementById('cc-'+id).classList.add('selected');
+  document.getElementById('btn-start-season').disabled=false;
+}
+
+function startWithClub(){
+  if(!_chosen)return;
+  MY=_chosen;
+  const c=clubById(MY);
+  document.getElementById('tb-club').textContent=c.name+' \u2014 Manager';
+  document.getElementById('nav-bar').style.display='flex';
+  document.getElementById('fix-title').textContent='Season Fixture \u2014 '+c.name;
+  initState();nav('hub');
+}
+
+function initState(){
+  state={season:2026,round:0,xp:15,wins:0,losses:0,draws:0,phase:'regular',
+    fixture:genFix(),
+    ladder:CLUBS.map(c=>({id:c.id,w:0,l:0,d:0,pf:0,pa:0,pts:0})),
+    tactics:{style:'attack',fwd:'press',def:'zone',mid:'rotate',ruc:'contest',kickRatio:50,press:60,risk:50,man:40},
+    finals:{bracket:null,myEliminated:false,myFinalsResults:[]},
+    selectedTeam:null,draftPicks:[],draftRookies:[],awardsHistory:[]};
+  selState={};
+  Object.values(rosters).forEach(r=>r.forEach(p=>{p.sGoals=0;p.sKicks=0;p.sHandballs=0;p.sMarks=0;p.sTackles=0;}));
+}
+
+function genFix(){
+  const op=CLUBS.map(c=>c.id).filter(x=>x!==MY);
+  for(let i=op.length-1;i>0;i--){const j=rnd(0,i);[op[i],op[j]]=[op[j],op[i]];}
+  const f=[];
+  for(let i=0;i<17;i++)f.push({round:i+1,opp:op[i],isHome:i%2===0,played:false});
+  op.slice(0,5).forEach((o,i)=>f.push({round:18+i,opp:o,isHome:i%2!==0,played:false}));
+  return f;
+}
+
+let speedIdx=1;
+document.getElementById('speed-sl').addEventListener('input',function(){speedIdx=parseInt(this.value)-1;document.getElementById('speed-lbl').textContent=SPEED_LABELS[speedIdx];});
+
+// SQUAD
+let sqPos='ALL';
+function sqFilter(pos){sqPos=pos;document.querySelectorAll('#sc-squad .tab').forEach((t,i)=>t.classList.toggle('active',['ALL','MID','FWD','DEF','RUC','MF'][i]===pos));renderSquad();}
+function ovrBadge(v){const c=v>=85?'ob-e':v>=75?'ob-g':v>=65?'ob-a':'ob-l';return `<span class="ob ${c}">${v}</span>`;}
+function delistPlayer(idx,ev){if(ev)ev.stopPropagation();if(rosters[MY].length<=MIN_SQUAD){alert('Minimum squad reached.');return;}if(!confirm('Delist '+rosters[MY][idx].name+'?'))return;rosters[MY].splice(idx,1);const ns={};Object.entries(selState).forEach(([k,v])=>{const ki=parseInt(k);if(ki===idx)return;ns[ki>idx?ki-1:ki]=v;});selState=ns;renderSquad();}
+function renderSquad(){
+  const filtered=rosters[MY].map((p,i)=>({...p,_i:i})).filter(p=>sqPos==='ALL'||p.pos===sqPos||(sqPos==='MF'&&p.pos==='MF'));
+  const stars=t=>t===3?'\u2605\u2605\u2605':t===2?'\u2605\u2605':'\u2605';
+  const atMin=rosters[MY].length<=MIN_SQUAD;
+  document.getElementById('squad-count').textContent=rosters[MY].length+' players (min '+MIN_SQUAD+')';
+  let h='<thead><tr><th>Player</th><th>Pos</th><th>OVR</th><th>Spd</th><th>Skl</th><th>Atk</th><th>Def</th><th>Con</th><th>Phy</th><th></th></tr></thead><tbody>';
+  filtered.forEach(p=>{const posLbl=p.pos==='MF'?'<span class="pb" style="background:rgba(130,60,200,.12);color:#6620b0;">MF</span>':'<span class="pb">'+p.pos+'</span>';h+=`<tr><td style="white-space:nowrap;font-weight:500;">${p.name} <span class="ts-star">${stars(p.tier||1)}</span></td><td>${posLbl}</td><td>${ovrBadge(p.overall)}</td><td>${p.speed}</td><td>${p.skill}</td><td>${p.attack}</td><td>${p.defence}</td><td>${p.contest}</td><td>${p.physicality}</td><td>${atMin?'':`<button class="delist-btn" onclick="delistPlayer(${p._i},event)">Delist</button>`}</td></tr>`;});
+  document.getElementById('sq-table').innerHTML=h+'</tbody>';
+}
+
+// STATS
+let statTab='my';
+function statsTab(t){statTab=t;document.querySelectorAll('#sc-stats .tab').forEach((el,i)=>el.classList.toggle('active',['my','goals','disposals','marks','tackles'][i]===t));renderStats();}
+function renderStats(){
+  const cont=document.getElementById('stats-content');
+  if(statTab==='my'){
+    const pl=[...rosters[MY]].sort((a,b)=>(b.sKicks+b.sHandballs)-(a.sKicks+a.sHandballs));
+    let h='<div class="card" style="padding:.5rem;"><div style="overflow-x:auto;"><table class="ptable"><thead><tr><th>Player</th><th>Pos</th><th>G</th><th>D</th><th>K</th><th>HB</th><th>M</th><th>T</th></tr></thead><tbody>';
+    pl.forEach(p=>{h+=`<tr><td style="font-weight:500;">${p.name}</td><td><span class="pb">${posLabel(p)}</span></td><td>${p.sGoals}</td><td style="font-weight:600;">${p.sKicks+p.sHandballs}</td><td>${p.sKicks}</td><td>${p.sHandballs}</td><td>${p.sMarks}</td><td>${p.sTackles}</td></tr>`;});
+    cont.innerHTML=h+'</tbody></table></div></div>';return;
+  }
+  const cats={goals:{k:'sGoals',l:'Goals'},disposals:{k:'_d',l:'Disposals'},marks:{k:'sMarks',l:'Marks'},tackles:{k:'sTackles',l:'Tackles'}};
+  const cat=cats[statTab];
+  const all=[];
+  CLUBS.forEach(c=>{(rosters[c.id]||[]).forEach(p=>{all.push({...p,_d:p.sKicks+p.sHandballs,clubNick:clubById(c.id).nick,clubId:c.id});});});
+  all.sort((a,b)=>b[cat.k]-a[cat.k]);
+  let h=`<div class="card"><h3>League leaders \u2014 ${cat.l}</h3>`;
+  all.slice(0,20).forEach((p,i)=>{
+    const mine=rosters[MY].some(mp=>mp.name===p.name);
+    h+=`<div class="stats-leader-row"><span class="stats-rank">${i+1}</span><span class="stats-name" style="font-weight:${mine?600:400};">${p.name}${mine?` <span class="gold-badge">YOUR CLUB</span>`:''}</span><span style="font-size:11px;color:var(--t2);">${p.clubNick}</span><span class="stats-val">${p[cat.k]}</span></div>`;
+  });
+  cont.innerHTML=h+'</div>';
+}
+
+// SELECTION — with MF dual position support
+function getSelCounts(){
+  const st={DEF:0,MID:0,RUC:0,FWD:0};let bench=0;
+  Object.entries(selState).forEach(([k,v])=>{
+    if(v===1||v==='MID'||v==='FWD'){
+      const p=rosters[MY][parseInt(k)];
+      const slot=(v==='MID'||v==='FWD')?v:p.pos;
+      if(st[slot]!==undefined)st[slot]++;
+    }
+    if(v===2)bench++;
+  });
+  return{starters:st,bench,total:Object.values(st).reduce((a,b)=>a+b,0)+bench};
+}
+
+function getPlayerSlot(idx){
+  // Returns the slot this player is filling (MID or FWD for MF players, or their natural pos)
+  const v=selState[idx];
+  if(!v||v===0)return null;
+  if(v===2)return 'bench';
+  const p=rosters[MY][idx];
+  if(p.pos==='MF')return(v==='MID'||v==='FWD')?v:null;
+  return(v===1)?p.pos:null;
+}
+
+function toggleSel(idx){
+  const p=rosters[MY][idx];
+  const cur=selState[idx]||0;
+  const{starters,bench}=getSelCounts();
+  
+  if(p.pos==='MF'){
+    // MF cycle: unselected -> MID (if space) -> FWD (if space) -> bench (if space) -> remove
+    if(cur===0||cur===2){
+      if(cur===0){
+        // try MID first
+        if(starters.MID<STARTER_SLOTS.MID){selState[idx]='MID';}
+        else if(starters.FWD<STARTER_SLOTS.FWD){selState[idx]='FWD';}
+        else if(bench<BENCH_SIZE){selState[idx]=2;}
+        else{alert('No spots available.');return;}
+      } else {
+        // was bench, try starter
+        if(starters.MID<STARTER_SLOTS.MID){selState[idx]='MID';}
+        else if(starters.FWD<STARTER_SLOTS.FWD){selState[idx]='FWD';}
+        else selState[idx]=0;
+      }
+    } else if(cur==='MID'){
+      if(starters.FWD<STARTER_SLOTS.FWD)selState[idx]='FWD';
+      else if(bench<BENCH_SIZE)selState[idx]=2;
+      else selState[idx]=0;
+    } else if(cur==='FWD'){
+      if(bench<BENCH_SIZE)selState[idx]=2;
+      else selState[idx]=0;
+    }
+  } else {
+    // Normal player: unselected->starter->bench->remove
+    if(cur===0){
+      if(starters[p.pos]<STARTER_SLOTS[p.pos])selState[idx]=1;
+      else if(bench<BENCH_SIZE)selState[idx]=2;
+      else{alert('Full.');return;}
+    } else if(cur===1){
+      if(bench<BENCH_SIZE)selState[idx]=2;
+      else selState[idx]=0;
+    } else selState[idx]=0;
+  }
+  renderSelectionScreen();
+}
+
+function autoSelect(){
+  selState={};
+  const r=rosters[MY];
+  // Fill DEF, RUC from natural position players first
+  ['DEF','RUC'].forEach(pos=>{
+    r.map((p,i)=>({i,p})).filter(({p})=>p.pos===pos).sort((a,b)=>b.p.overall-a.p.overall).slice(0,STARTER_SLOTS[pos]).forEach(({i})=>selState[i]=1);
+  });
+  // Fill MID: from MID players, then MF players if needed
+  let midCount=0;
+  r.map((p,i)=>({i,p})).filter(({p})=>p.pos==='MID').sort((a,b)=>b.p.overall-a.p.overall).slice(0,STARTER_SLOTS.MID).forEach(({i})=>{selState[i]=1;midCount++;});
+  if(midCount<STARTER_SLOTS.MID){
+    r.map((p,i)=>({i,p})).filter(({p})=>p.pos==='MF'&&!selState[i]).sort((a,b)=>b.p.overall-a.p.overall).slice(0,STARTER_SLOTS.MID-midCount).forEach(({i})=>selState[i]='MID');
+  }
+  // Fill FWD: from FWD players, then remaining MF players
+  let fwdCount=0;
+  r.map((p,i)=>({i,p})).filter(({p})=>p.pos==='FWD').sort((a,b)=>b.p.overall-a.p.overall).slice(0,STARTER_SLOTS.FWD).forEach(({i})=>{selState[i]=1;fwdCount++;});
+  if(fwdCount<STARTER_SLOTS.FWD){
+    r.map((p,i)=>({i,p})).filter(({p})=>p.pos==='MF'&&!selState[i]).sort((a,b)=>b.p.overall-a.p.overall).slice(0,STARTER_SLOTS.FWD-fwdCount).forEach(({i})=>selState[i]='FWD');
+  }
+  // Bench: best remaining
+  const used=new Set(Object.keys(selState).map(Number));
+  r.map((p,i)=>({i,p})).filter(({i})=>!used.has(i)).sort((a,b)=>b.p.overall-a.p.overall).slice(0,BENCH_SIZE).forEach(({i})=>selState[i]=2);
+  renderSelectionScreen();
+}
+
+function goToSelection(){
+  currentFix=state.phase==='finals'?getNextFinalsMatch():state.fixture.find(x=>!x.played);
+  if(!currentFix)return;
+  if(state.selectedTeam){
+    selState={};
+    state.selectedTeam.starters.forEach(s=>{if(s.idx<rosters[MY].length)selState[s.idx]=s.slot||1;});
+    state.selectedTeam.bench.forEach(i=>{if(i<rosters[MY].length)selState[i]=2;});
+    const{starters,bench}=getSelCounts();
+    if(!Object.entries(STARTER_SLOTS).every(([pos,q])=>starters[pos]===q)||bench!==BENCH_SIZE)autoSelect();
+  } else autoSelect();
+  const oC=clubById(currentFix.opp);
+  document.getElementById('sel-title').textContent='Select Team \u2014 Round '+(currentFix.round||'Finals');
+  document.getElementById('sel-subtitle').textContent=(currentFix.isHome?'Home':'Away')+' vs '+oC.name;
+  renderSelectionScreen();nav('selection');
+}
+
+function renderSelectionScreen(){
+  const{starters,bench,total}=getSelCounts();
+  document.getElementById('sel-count').textContent=total+'/22 selected';
+  document.getElementById('sel-bench-count').textContent='Bench: '+bench+'/'+BENCH_SIZE;
+  const errors=[];
+  Object.entries(STARTER_SLOTS).forEach(([pos,q])=>{if(starters[pos]!==q)errors.push(pos+': '+starters[pos]+'/'+q);});
+  if(bench!==BENCH_SIZE)errors.push('Bench: '+bench+'/'+BENCH_SIZE);
+  document.getElementById('sel-confirm').disabled=errors.length>0;
+  document.getElementById('sel-errors').textContent=errors.join(' \u00b7 ');
+  const groups=[
+    {pos:'DEF',label:'Defenders',quota:6},
+    {pos:'MID',label:'Midfielders',quota:8,includeMF:true},
+    {pos:'RUC',label:'Rucks',quota:2},
+    {pos:'FWD',label:'Forwards',quota:6,includeMF:true}
+  ];
+  let lh='';
+  groups.forEach(g=>{
+    const cnt=starters[g.pos],ok=cnt===g.quota,over=cnt>g.quota;
+    lh+=`<div class="pos-group"><div class="pos-group-hdr"><span class="pg-label">${g.label}</span><span class="pg-quota${ok?' ok':over?' over':''}">${cnt}/${g.quota}</span></div>`;
+    // Natural position players first
+    let groupPlayers=rosters[MY].map((p,i)=>({...p,i})).filter(p=>p.pos===g.pos);
+    // Include MF players selectable here
+    if(g.includeMF)groupPlayers=[...groupPlayers,...rosters[MY].map((p,i)=>({...p,i})).filter(p=>p.pos==='MF')];
+    groupPlayers.sort((a,b)=>b.overall-a.overall);
+    groupPlayers.forEach(p=>{
+      const sv=selState[p.i]||0;
+      const fillingThisSlot=(p.pos==='MF')?(sv===g.pos):sv===1;
+      const isBench=sv===2;
+      const cls=fillingThisSlot?' ss':isBench?' sb2':'';
+      const mfLabel=p.pos==='MF'?'<span style="font-size:9px;background:rgba(130,60,200,.12);color:#6620b0;border-radius:3px;padding:1px 4px;margin-left:3px;">MF</span>':'';
+      const tag=fillingThisSlot?`<span class="sel-tag starter">${g.pos}</span>`:isBench?'<span class="sel-tag bench">Bench</span>':'';
+      lh+=`<div class="sel-row${cls}" onclick="toggleSel(${p.i})"><div class="sel-check">${fillingThisSlot?'\u2713':isBench?'B':''}</div><div class="sel-name">${p.name}${mfLabel}</div>${ovrBadge(p.overall)}${tag}</div>`;
+    });
+    lh+='</div>';
+  });
+  document.getElementById('sel-player-list').innerHTML=lh;
+  // Panel
+  const stSlots={DEF:[],MID:[],RUC:[],FWD:[]},benchSlots=[];
+  Object.entries(selState).forEach(([k,v])=>{
+    const p=rosters[MY][parseInt(k)];
+    if(v===1)stSlots[p.pos]&&stSlots[p.pos].push(p);
+    else if(v==='MID')stSlots.MID.push(p);
+    else if(v==='FWD')stSlots.FWD.push(p);
+    else if(v===2)benchSlots.push(p);
+  });
+  Object.values(stSlots).forEach(arr=>arr.sort((a,b)=>b.overall-a.overall));
+  benchSlots.sort((a,b)=>b.overall-a.overall);
+  let ph='';
+  [['DEF',6],['MID',8],['RUC',2],['FWD',6]].forEach(([pos,q])=>{
+    ph+=`<div class="panel-section">${pos}</div>`;
+    for(let s=0;s<q;s++){const p=stSlots[pos][s];ph+=`<div class="panel-slot"><span class="ps-pos">${pos}</span><span class="ps-name${p?'':' empty'}">${p?p.name+(p.pos==='MF'?' \u25c6':''):'Empty'}</span>${p?`<span class="ps-ovr">${p.overall}</span>`:''}</div>`;}
+  });
+  ph+=`<div class="bench-bar">Bench (${bench}/${BENCH_SIZE})</div>`;
+  for(let s=0;s<BENCH_SIZE;s++){const p=benchSlots[s];ph+=`<div class="panel-slot" style="background:rgba(176,104,0,.04);"><span class="ps-pos" style="color:var(--amber);">${p?posLabel(p):'\u2014'}</span><span class="ps-name${p?'':' empty'}">${p?p.name:'Empty'}</span>${p?`<span class="ps-ovr">${p.overall}</span>`:''}</div>`;}
+  document.getElementById('sel-panel-slots').innerHTML=ph;
+}
+
+function confirmSelection(){
+  const{starters,bench}=getSelCounts();
+  const err=[];
+  Object.entries(STARTER_SLOTS).forEach(([pos,q])=>{if(starters[pos]!==q)err.push(pos);});
+  if(err.length||bench!==BENCH_SIZE){alert('Incomplete: '+err.join(', '));return;}
+  // Save with slot info for MF players
+  const starterList=Object.entries(selState).filter(([,v])=>v===1||v==='MID'||v==='FWD').map(([k,v])=>({idx:parseInt(k),slot:v}));
+  const benchList=Object.entries(selState).filter(([,v])=>v===2).map(([k])=>parseInt(k));
+  state.selectedTeam={starters:starterList,bench:benchList};
+  goToMatch(currentFix);
+}
+
+// XP
+function calcPerfBonuses(myRoster,win){
+  const bonuses=[];
+  const sorted=[...myRoster].sort((a,b)=>(b.kicks+b.handballs)-(a.kicks+a.handballs));
+  if(sorted[0]&&(sorted[0].kicks+sorted[0].handballs)>0)bonuses.push({player:sorted[0].name,reason:'Best on ground',xp:4});
+  if(sorted[1]&&(sorted[1].kicks+sorted[1].handballs)>0)bonuses.push({player:sorted[1].name,reason:'2nd best',xp:2});
+  if(sorted[2]&&(sorted[2].kicks+sorted[2].handballs)>0)bonuses.push({player:sorted[2].name,reason:'3rd best',xp:1});
+  const topG=[...myRoster].sort((a,b)=>b.goals-a.goals)[0];
+  if(topG&&topG.goals>=3)bonuses.push({player:topG.name,reason:topG.goals+' goals',xp:Math.min(4,topG.goals)});
+  if(win)bonuses.push({player:'Team',reason:'Victory bonus',xp:3});
+  let db=0;myRoster.filter(p=>p.kicks+p.handballs>=20).slice(0,2).forEach(p=>{if(db<2){bonuses.push({player:p.name,reason:(p.kicks+p.handballs)+' disposals',xp:1});db++;}});
+  return bonuses;
+}
+function showPerfBonuses(bonuses){
+  if(!bonuses.length){document.getElementById('xp-bonus-wrap').style.display='none';return;}
+  const total=bonuses.reduce((s,b)=>s+b.xp,0);
+  document.getElementById('xp-bonus-total').textContent='+'+total;
+  document.getElementById('xp-bonus-list').innerHTML=bonuses.map(b=>`<div class="xp-bonus-row"><span><strong>${b.player}</strong> \u2014 ${b.reason}</span><span class="xp-pill">+${b.xp} XP</span></div>`).join('');
+  document.getElementById('xp-bonus-wrap').style.display='block';
+  state.xp+=total;updateHub();
+}
+
+const C={ruck_win:['{ruc} wins the tap, finds {mid}.','{ruc} dominates clearance.'],ruck_loss:['Hard contest at the bounce.','Rucks clash \u2014 possession lost.'],clear:['{mid} wins and drives forward.','{mid} breaks free, clears to half.'],tackle:['{tack} pins {mid} \u2014 holding the ball!','Pressure from {tack} forces an error.'],intercept:['{def} reads it \u2014 intercept mark!','{def} steps in front cleanly.'],entry:['{mid} finds {fwd} inside 50.','{mid} threads a pass to {fwd}.'],mark_fwd:['{fwd} marks on the lead.','{fwd} takes the contested mark.'],goal:['GOAL! {fwd} nails it from {dist}m!','GOAL! {fwd} kicks truly!'],behind:['Behind \u2014 {fwd} pushes it wide.','Point only from {fwd}.'],save:['{def} spoils on the goal line!','Great spoil from {def}.'],qtr_start:['Q{q} underway!','Centre bounce \u2014 Q{q} live.'],qtr_end:['SIREN! End of Q{q}.','Q{q} done.']};
+function tc(key,v){return (C[key]?pick(C[key]):'').replace(/\{(\w+)\}/g,(_,k)=>v&&v[k]!==undefined?v[k]:'?');}
+
+function simQtrEngine(ms,qtr){
+  const h=ms.home,a=ms.away;
+  const hR=h.myClub?ms.myRoster:(rosters[h.id]||[]);
+  const aR=a.myClub?ms.myRoster:(rosters[a.id]||[]);
+  const T=state.tactics;
+  const pressBoost=(T.press-50)/300,kickBias=T.kickRatio/100,riskBoost=(T.risk-50)/200,manBoost=T.man/200;
+  const fwdBoost=T.fwd==='press'?0.06:T.fwd==='hold'?0.03:0;
+  const defBoost=T.def==='man'?0.07:T.def==='press'?0.05:0.03;
+  const midBoost=T.mid==='lock'?0.05:T.mid==='spread'?-0.02:0;
+  const rucBoost=T.ruc==='contest'?0.06:0.01;
+  const hBase=hR.reduce((s,p)=>s+p.overall,0)/Math.max(1,hR.length)*(h.isHome?1.07:1);
+  const aBase=aR.reduce((s,p)=>s+p.overall,0)/Math.max(1,aR.length)*(a.isHome?1.07:1);
+  const homePoss=hBase/(hBase+aBase);
+  const evs=[],ev=(min,type,txt,isH)=>evs.push({min,type,txt,isH});
+  ev(0,'qtr',tc('qtr_start',{q:qtr}));
+  for(let i=0;i<44;i++){
+    const myBoost=pressBoost+fwdBoost+midBoost*0.5;
+    const isH=Math.random()<(homePoss+(h.myClub?myBoost:-myBoost)*0.5);
+    const tm=isH?h:a,op=isH?a:h,tr=isH?hR:aR,or=isH?aR:hR;
+    // MF players can act as mids or forwards
+    const mids=tr.filter(p=>p.pos==='MID'||p.pos==='MF');
+    const fwds=tr.filter(p=>p.pos==='FWD'||p.pos==='MF');
+    const rucs=tr.filter(p=>p.pos==='RUC');
+    const odefs=or.filter(p=>p.pos==='DEF'),omids=or.filter(p=>p.pos==='MID'||p.pos==='MF');
+    const mid=mids.length?pick(mids):pick(tr),fwd=fwds.length?pick(fwds):pick(tr),ruc=rucs.length?rucs[0]:mid;
+    const odef=odefs.length?pick(odefs):pick(or),omid=omids.length?pick(omids):pick(or);
+    const min=Math.min(29,Math.floor(i/44*28)+rnd(0,2));
+    const rucStr=ruc.contest/99*(T.ruc==='contest'?1.1:0.85);
+    if(Math.random()<0.38){ruc.hitouts++;tm.st.hitouts++;if(Math.random()<rucStr*0.82+0.1+rucBoost){tm.st.clearances++;if(Math.random()<0.45)ev(min,'ruck',tc('ruck_win',{ruc:ruc.name,mid:mid.name}),isH);}else if(Math.random()<0.35)ev(min,'ruck',tc('ruck_loss',{}),!isH);}
+    const cStr=(mid.contest*0.6+mid.physicality*0.4)/99+(tm.myClub?midBoost*0.3:0);
+    mid.kicks++;tm.st.kicks++;tm.st.contestedPoss++;
+    if(Math.random()>=(cStr*0.5+0.15)){const tackChance=omid.physicality/99*0.55+0.2+(op.myClub?defBoost*0.3:0)+manBoost*0.2;if(Math.random()<tackChance){omid.tackles++;op.st.tackles++;ev(min,'tackle',tc('tackle',{tack:omid.name,mid:mid.name}),!isH);}continue;}
+    tm.st.clearances++;mid.handballs++;tm.st.handballs++;if(Math.random()<0.5)ev(min,'clear',tc('clear',{mid:mid.name}),isH);
+    const entryChance=(mid.skill*(kickBias*0.6+0.2)+mid.speed*(1-kickBias)*0.3)/99+fwdBoost*0.3+riskBoost*0.2;
+    const interceptChance=odef.defence/99*0.35+0.05+(op.myClub?defBoost*0.15:0);
+    if(Math.random()<(1-entryChance)*0.5+interceptChance*0.2){odef.marks++;odef.kicks++;op.st.marks++;op.st.kicks++;ev(min,'int',tc('intercept',{def:odef.name}),!isH);continue;}
+    mid.kicks++;tm.st.kicks++;tm.st.inside50++;
+    const didMark=Math.random()<fwd.speed/99*0.25+fwd.skill/99*0.15+(tm.myClub?fwdBoost*0.2:0);
+    if(didMark){fwd.marks++;tm.st.marks++;}fwd.kicks++;tm.st.kicks++;
+    if(Math.random()<0.65)ev(min,didMark?'markfwd':'entry',didMark?tc('mark_fwd',{fwd:fwd.name}):tc('entry',{mid:mid.name,fwd:fwd.name}),isH);
+    tm.st.shots++;
+    const shotQ=(fwd.attack*0.6+fwd.skill*0.3+fwd.speed*0.1)/99+(tm.myClub?riskBoost*0.1:0);
+    if(Math.random()<shotQ*0.52+0.08){fwd.goals++;tm.goals++;tm.qG[qtr-1]++;tm.score=tm.goals*6+tm.behinds;ev(min,'goal',tc('goal',{fwd:fwd.name,dist:rnd(15,50)}),isH);}
+    else if(Math.random()<0.52){fwd.behinds++;tm.behinds++;tm.qB[qtr-1]++;tm.score=tm.goals*6+tm.behinds;if(Math.random()<0.65)ev(min,'behind',tc('behind',{fwd:fwd.name}),isH);}
+    else{odef.marks++;odef.kicks++;op.st.marks++;if(Math.random()<0.5)ev(min,'save',tc('save',{def:odef.name}),!isH);}
+    if(Math.random()<0.4){const p1=pick(tr),p2=pick(tr);p1.handballs++;p2.handballs++;tm.st.handballs++;}
+    if(Math.random()<0.2){pick(tr).marks++;tm.st.marks++;}
+    if(Math.random()<0.2){pick(or).tackles++;op.st.tackles++;}
+  }
+  ev(30,'qtrend',tc('qtr_end',{q:qtr}));
+  return evs;
+}
+
+let feedQ=[],feedTimer=null,feedLive=false,_feedDone=null;
+function queueFeed(evs,done){_feedDone=done||null;feedQ.push(...evs);if(!feedLive){feedLive=true;document.getElementById('live-dot').style.display='inline-block';drainFeed();}}
+function drainFeed(){if(!feedQ.length){feedLive=false;document.getElementById('live-dot').style.display='none';if(_feedDone){_feedDone();_feedDone=null;}return;}appendEv(feedQ.shift());const d=SPEED_MS[speedIdx];if(d===0){while(feedQ.length)appendEv(feedQ.shift());feedLive=false;document.getElementById('live-dot').style.display='none';if(_feedDone){_feedDone();_feedDone=null;}}else feedTimer=setTimeout(drainFeed,d);}
+function skipFeed(){clearTimeout(feedTimer);while(feedQ.length)appendEv(feedQ.shift());feedQ=[];feedLive=false;document.getElementById('live-dot').style.display='none';if(_feedDone){_feedDone();_feedDone=null;}}
+function appendEv(ev){const el=document.getElementById('feed-events'),d=document.createElement('div');let cls='feed-ev';if(ev.type==='goal')cls+=ev.isH?' goal-h':' goal-a';else if(ev.type==='behind')cls+=ev.isH?' behind-h':' behind-a';else if(ev.type==='qtr'||ev.type==='qtrend')cls+=' qev';d.className=cls;d.innerHTML=`<span class="feed-t">${ev.min}'</span><span class="feed-txt">${ev.txt}</span>`;el.appendChild(d);document.getElementById('feed-scroll').scrollTop=9999;updateSB();renderMStats();}
+
+let MS=null;
+function goToMatch(fix){
+  if(!fix)fix=currentFix;
+  const hId=fix.isHome?MY:fix.opp,aId=fix.isHome?fix.opp:MY;
+  const st=state.selectedTeam;
+  const myRoster=[
+    ...st.starters.map(s=>{const i=typeof s==='object'?s.idx:s;return rosters[MY][i];}),
+    ...st.bench.map(i=>rosters[MY][i])
+  ].filter(Boolean);
+  myRoster.forEach(p=>{p.goals=0;p.behinds=0;p.kicks=0;p.handballs=0;p.marks=0;p.tackles=0;p.hitouts=0;});
+  (rosters[fix.opp]||[]).forEach(p=>{p.goals=0;p.behinds=0;p.kicks=0;p.handballs=0;p.marks=0;p.tackles=0;p.hitouts=0;});
+  const mkT=(id,isHome,myClub)=>({id,nick:clubById(id).nick,isHome,myClub,goals:0,behinds:0,score:0,qG:[0,0,0,0],qB:[0,0,0,0],st:{kicks:0,handballs:0,marks:0,tackles:0,hitouts:0,inside50:0,clearances:0,contestedPoss:0,shots:0}});
+  MS={home:mkT(hId,true,hId===MY),away:mkT(aId,false,aId===MY),myRoster,qtr:0,done:false,fix};
+  feedQ=[];clearTimeout(feedTimer);feedLive=false;
+  document.getElementById('live-dot').style.display='none';
+  document.getElementById('m-hn').textContent=MS.home.nick;document.getElementById('m-an').textContent=MS.away.nick;
+  document.getElementById('m-lbl').textContent=state.phase==='finals'?'Finals \u2014 '+(fix.label||''):'Round '+fix.round+' \u2014 '+(fix.isHome?'Home':'Away')+' vs '+clubById(fix.opp).name;
+  ['mq1','mq2','mq3','mq4'].forEach(id=>document.getElementById(id).textContent='-');
+  document.getElementById('m-status').textContent='Not started';
+  document.getElementById('feed-events').innerHTML='';
+  document.getElementById('btn-pg').style.display='none';document.getElementById('btn-skip').style.display='none';
+  document.getElementById('btn-qtr').disabled=false;document.getElementById('btn-full').disabled=false;
+  document.getElementById('other-scores-wrap').style.display='none';
+  updateSB();renderMStats();nav('match');
+}
+function simNextQtr(){if(!MS||MS.done||feedLive)return;if(MS.qtr>=4){endMatch();return;}MS.qtr++;document.getElementById('btn-qtr').disabled=true;document.getElementById('btn-full').disabled=true;document.getElementById('btn-skip').style.display='inline-block';queueFeed(simQtrEngine(MS,MS.qtr),()=>{document.getElementById('btn-skip').style.display='none';updateQtrScores();if(MS.qtr>=4)endMatch();else{document.getElementById('btn-qtr').disabled=false;document.getElementById('btn-full').disabled=false;}});}
+function simFull(){if(!MS||feedLive)return;document.getElementById('btn-qtr').disabled=true;document.getElementById('btn-full').disabled=true;document.getElementById('btn-skip').style.display='inline-block';let evs=[];for(let q=MS.qtr+1;q<=4;q++){MS.qtr=q;evs.push(...simQtrEngine(MS,q));}queueFeed(evs,()=>{document.getElementById('btn-skip').style.display='none';updateQtrScores();endMatch();});}
+function updateQtrScores(){for(let q=1;q<=4;q++){const e=document.getElementById('mq'+q);e.textContent=q<=MS.qtr?MS.home.qG[q-1]+'.'+MS.home.qB[q-1]+'\u2013'+MS.away.qG[q-1]+'.'+MS.away.qB[q-1]:'-';}}
+
+function accSeasonStats(myRoster){
+  myRoster.forEach(p=>{p.sGoals+=p.goals;p.sKicks+=p.kicks;p.sHandballs+=p.handballs;p.sMarks+=p.marks;p.sTackles+=p.tackles;});
+  (rosters[MS.fix.opp]||[]).forEach(p=>{p.sGoals+=p.goals;p.sKicks+=p.kicks;p.sHandballs+=p.handballs;p.sMarks+=p.marks;p.sTackles+=p.tackles;});
+}
+
+function endMatch(){
+  MS.done=true;document.getElementById('btn-qtr').disabled=true;document.getElementById('btn-full').disabled=true;document.getElementById('btn-skip').style.display='none';document.getElementById('btn-pg').style.display='inline-block';
+  const my=MS.home.myClub?MS.home:MS.away,op=MS.home.myClub?MS.away:MS.home;
+  const win=my.score>op.score,draw=my.score===op.score;
+  accSeasonStats(MS.myRoster);
+  if(state.phase==='finals'){processFinalResult(MS,win);}
+  else{MS.fix.played=true;MS.fix.result=win?'W':draw?'D':'L';MS.fix.myG=my.goals;MS.fix.myB=my.behinds;MS.fix.oppG=op.goals;MS.fix.oppB=op.behinds;if(win)state.wins++;else if(draw)state.draws++;else state.losses++;state.round++;updateLadderFor(MS.home.id,MS.home.score,MS.away.id,MS.away.score);showOtherScores(state.round,simOtherMatches());applyPassiveTraining();if(state.fixture.every(f=>f.played))triggerFinalsSetup();}
+  MS.perfBonuses=calcPerfBonuses(MS.myRoster,win);
+  document.getElementById('m-status').textContent='Full time \u2014 '+(draw?'Draw':(win?my.nick:op.nick)+' win');
+  updateHub();
+}
+function updateLadderFor(hId,hSc,aId,aSc){const hL=state.ladder.find(t=>t.id===hId),aL=state.ladder.find(t=>t.id===aId);if(!hL||!aL)return;hL.pf+=hSc;hL.pa+=aSc;aL.pf+=aSc;aL.pa+=hSc;if(hSc>aSc){hL.w++;hL.pts+=4;aL.l++;}else if(aSc>hSc){aL.w++;aL.pts+=4;hL.l++;}else{hL.d++;aL.d++;hL.pts+=2;aL.pts+=2;}}
+function simOtherMatches(){const used=new Set([MY,MS.fix.opp]);const rem=CLUBS.map(c=>c.id).filter(id=>!used.has(id));const results=[];for(let i=0;i+1<rem.length;i+=2){const hId=rem[i],aId=rem[i+1];const hW=Math.random()<teamOVR(hId)*1.05/(teamOVR(hId)*1.05+teamOVR(aId));const hS=rnd(55,130),aS=hW?rnd(40,hS-1):rnd(hS+1,140);updateLadderFor(hId,hS,aId,aS);const picks=(arr,n)=>[...arr].sort(()=>Math.random()-0.5).slice(0,n);picks(rosters[hId]||[],22).forEach(p=>{p.sKicks+=rnd(2,12);p.sHandballs+=rnd(1,8);p.sMarks+=rnd(0,5);p.sTackles+=rnd(0,4);p.sGoals+=Math.random()<0.15?1:0;});picks(rosters[aId]||[],22).forEach(p=>{p.sKicks+=rnd(2,12);p.sHandballs+=rnd(1,8);p.sMarks+=rnd(0,5);p.sTackles+=rnd(0,4);p.sGoals+=Math.random()<0.15?1:0;});results.push({hId,aId,hS,aS});}return results;}
+function showOtherScores(round,results){if(!results||!results.length)return;document.getElementById('other-round-num').textContent=round;document.getElementById('other-scores-list').innerHTML=results.map(r=>`<div class="score-row"><span>${clubById(r.hId).nick} vs ${clubById(r.aId).nick}</span><span style="font-weight:600;">${clubById(r.hId).nick} ${r.hS} def ${clubById(r.aId).nick} ${r.aS}</span></div>`).join('');document.getElementById('other-scores-wrap').style.display='block';}
+
+function showPG(){
+  const my=MS.home.myClub?MS.home:MS.away,op=MS.home.myClub?MS.away:MS.home;
+  const win=my.score>op.score;
+  document.getElementById('pg-lbl').textContent=win?'Victory \u2014 '+my.nick+' '+my.goals+'.'+my.behinds+' ('+my.score+') def '+op.nick+' '+op.goals+'.'+op.behinds+' ('+op.score+')':'Defeat \u2014 '+op.nick+' '+op.goals+'.'+op.behinds+' ('+op.score+') def '+my.nick+' '+my.goals+'.'+my.behinds+' ('+my.score+')';
+  const myPs=MS.myRoster.map(p=>({...p,club:my.nick,mine:true}));
+  const opPs=(rosters[op.id]||[]).map(p=>({...p,club:op.nick,mine:false}));
+  const all=[...myPs,...opPs].sort((a,b)=>(b.kicks+b.handballs)-(a.kicks+a.handballs));
+  let h='<thead><tr><th>Player</th><th>Club</th><th>Pos</th><th>OVR</th><th>G</th><th>K</th><th>HB</th><th>D</th><th>M</th><th>T</th><th>HO</th></tr></thead><tbody>';
+  all.forEach(p=>{const ob=p.overall>=85?'ob-e':p.overall>=75?'ob-g':p.overall>=65?'ob-a':'ob-l';h+=`<tr><td style="white-space:nowrap;font-weight:${p.mine?600:400};">${p.name}</td><td style="color:var(--t2);">${p.club}</td><td><span class="pb">${posLabel(p)}</span></td><td><span class="ob ${ob}">${p.overall}</span></td><td>${p.goals}</td><td>${p.kicks}</td><td>${p.handballs}</td><td style="font-weight:600;">${p.kicks+p.handballs}</td><td>${p.marks}</td><td>${p.tackles}</td><td>${p.hitouts||0}</td></tr>`;});
+  document.getElementById('pg-table').innerHTML=h+'</tbody>';
+  if(MS.perfBonuses&&!MS.bonusesAwarded){MS.bonusesAwarded=true;showPerfBonuses(MS.perfBonuses);}
+  nav('postgame');
+}
+
+function getSortedLadder(){return [...state.ladder].sort((a,b)=>b.pts-a.pts||((b.pf-b.pa)-(a.pf-a.pa)));}
+function triggerFinalsSetup(){state.phase='finals';const top8=getSortedLadder().slice(0,8).map(t=>t.id);state.finals.bracket=[{week:1,label:'Qualifying Final',home:top8[0],away:top8[3],played:false,winner:null,loser:null},{week:1,label:'Qualifying Final',home:top8[1],away:top8[2],played:false,winner:null,loser:null},{week:1,label:'Elimination Final',home:top8[4],away:top8[7],played:false,winner:null,loser:null},{week:1,label:'Elimination Final',home:top8[5],away:top8[6],played:false,winner:null,loser:null},{week:2,label:'Semi Final',home:null,away:null,played:false,winner:null,loser:null},{week:2,label:'Semi Final',home:null,away:null,played:false,winner:null,loser:null},{week:3,label:'Preliminary Final',home:null,away:null,played:false,winner:null,loser:null},{week:3,label:'Preliminary Final',home:null,away:null,played:false,winner:null,loser:null},{week:4,label:'Grand Final',home:null,away:null,played:false,winner:null,loser:null}];state.finals.myEliminated=false;state.finals.myFinalsResults=[];simAllNonMy(1);nav('finals');}
+function propagateBracket(){const b=state.finals.bracket;const qf=b.slice(0,2),ef=b.slice(2,4),sf=b.slice(4,6),pf=b.slice(6,8),gf=b[8];const addTo=(arr,val)=>{for(const m of arr){if(!m.home){m.home=val;return;}if(!m.away&&m.home!==val){m.away=val;return;}}};qf.forEach(m=>{if(m.played&&m.loser)addTo(sf,m.loser);});ef.forEach(m=>{if(m.played&&m.winner)addTo(sf,m.winner);});qf.forEach((m,i)=>{if(m.played&&m.winner){if(!pf[i].home)pf[i].home=m.winner;}});sf.forEach((m,i)=>{if(m.played&&m.winner){if(!pf[i].away)pf[i].away=m.winner;}});pf.forEach(m=>{if(m.played&&m.winner){if(!gf.home)gf.home=m.winner;else if(!gf.away&&gf.home!==m.winner)gf.away=m.winner;}});}
+function simFinalsMatch(idx){const m=state.finals.bracket[idx];if(!m.home||!m.away)return;const hW=Math.random()<teamOVR(m.home)*1.05/(teamOVR(m.home)*1.05+teamOVR(m.away));m.winner=hW?m.home:m.away;m.loser=hW?m.away:m.home;m.hScore=rnd(60,130);m.aScore=hW?rnd(50,m.hScore-1):rnd(m.hScore+1,140);m.played=true;}
+function simAllNonMy(week){state.finals.bracket.forEach((_,i)=>{const m=state.finals.bracket[i];if(m.week===week&&m.home!==MY&&m.away!==MY&&!m.played&&m.home&&m.away)simFinalsMatch(i);});propagateBracket();}
+function getNextFinalsMatch(){for(let i=0;i<state.finals.bracket.length;i++){const m=state.finals.bracket[i];if(!m.played&&m.home&&m.away&&(m.home===MY||m.away===MY)&&!state.finals.myEliminated)return{idx:i,...m,isHome:m.home===MY,opp:m.home===MY?m.away:m.home};}return null;}
+function processFinalResult(ms,win){const my=ms.home.myClub?ms.home:ms.away,op=ms.home.myClub?ms.away:ms.home;const m=state.finals.bracket[ms.fix.idx];m.hScore=ms.home.score;m.aScore=ms.away.score;m.winner=win?(ms.home.myClub?MY:ms.fix.opp):(ms.home.myClub?ms.fix.opp:MY);m.loser=win?(ms.home.myClub?ms.fix.opp:MY):(ms.home.myClub?MY:ms.fix.opp);m.played=true;propagateBracket();state.finals.myFinalsResults.push({label:m.label,win,myScore:my.score,oppScore:op.score,opp:op.nick});if(m.label==='Grand Final'){triggerAwards(win);return;}if(!win&&m.label!=='Qualifying Final'){state.finals.myEliminated=true;triggerAwards(false);return;}simAllNonMy(m.week);updateHub();nav('finals');}
+function renderFinalsBracket(){const b=state.finals.bracket;const wn=['','Week 1 \u2014 QF & EF','Week 2 \u2014 Semi Finals','Week 3 \u2014 Prelim Finals','Week 4 \u2014 Grand Final'];let html='<div class="finals-bracket">';[1,2,3,4].forEach(w=>{html+='<div class="finals-week"><h4>'+wn[w]+'</h4>';b.filter(m=>m.week===w).forEach(m=>{if(!m.home&&!m.away){html+='<div class="finals-matchup"><div class="fm-teams" style="color:var(--t2);">TBD</div></div>';return;}const hC=clubById(m.home),aC=clubById(m.away),isMyMatch=m.home===MY||m.away===MY;let result=m.played?'<span class="fm-result '+(m.winner===MY?'win':m.loser===MY?'loss':'')+'">'+hC.nick+' '+m.hScore+' def '+aC.nick+' '+m.aScore+'</span>':'<span style="font-size:11px;color:var(--t2);">Upcoming</span>';html+='<div class="finals-matchup"><div class="fm-teams">'+(isMyMatch?'<span class="fm-my">'+clubById(MY).nick+'</span> ':'')+hC.nick+' vs '+aC.nick+' <span style="font-size:10px;color:var(--t2);">'+m.label+'</span></div><div>'+result+'</div></div>';});html+='</div>';});html+='</div>';document.getElementById('finals-bracket-wrap').innerHTML=html;const nxt=getNextFinalsMatch();const aw=document.getElementById('finals-action');if(nxt&&!state.finals.myEliminated){aw.innerHTML='<div style="padding:1rem;background:var(--gl);border-radius:8px;display:flex;align-items:center;justify-content:space-between;"><span style="font-size:14px;font-weight:600;">Next: '+nxt.label+' vs '+clubById(nxt.opp).name+'</span><button class="btn primary" onclick="goToSelection()">Select Team &amp; Play</button></div>';}else if(state.finals.myEliminated){aw.innerHTML='<div style="padding:1rem;background:rgba(139,26,26,.07);border-radius:8px;text-align:center;"><p style="margin-bottom:.75rem;">'+clubById(MY).name+' eliminated.</p><button class="btn primary" onclick="triggerAwards(false)">See Awards &#8594;</button></div>';}else{aw.innerHTML='<div style="padding:1rem;text-align:center;"><button class="btn primary" onclick="simRemainingFinals()">Simulate remaining finals</button></div>';}}
+function simRemainingFinals(){for(let pass=0;pass<5;pass++){state.finals.bracket.forEach((_,i)=>{const m=state.finals.bracket[i];if(!m.played&&m.home&&m.away)simFinalsMatch(i);});propagateBracket();}triggerAwards(state.finals.bracket[8].winner===MY);}
+
+function triggerAwards(won){
+  state.phase='awards';const myC=clubById(MY);const allP=[];
+  CLUBS.forEach(c=>{(rosters[c.id]||[]).forEach(p=>{allP.push({...p,clubId:c.id,clubNick:clubById(c.id).nick,_d:p.sKicks+p.sHandballs});});});
+  const brown=allP.slice().sort((a,b)=>b._d-a._d)[0];
+  const coleman=allP.slice().sort((a,b)=>b.sGoals-a.sGoals)[0];
+  const myP=[...rosters[MY]].sort((a,b)=>(b.sKicks+b.sHandballs)-(a.sKicks+a.sHandballs))[0];
+  const aaScore=p=>p.overall*0.6+p._d*0.2+p.sGoals*1.5+p.sMarks*0.3+p.sTackles*0.3;
+  const aa=allP.slice().sort((a,b)=>aaScore(b)-aaScore(a)).slice(0,22);
+  const rising=allP.filter(p=>p.tier===1).sort((a,b)=>(b._d+b.sGoals*3)-(a._d+a.sGoals*3))[0];
+  const awardDefs=[
+    {id:'brownlow',icon:'&#127942;',name:'Brownlow Medal',desc:'League leader in disposals',winner:brown,mine:brown&&brown.clubId===MY,xp:8,stat:brown?brown._d+' disposals':''},
+    {id:'coleman',icon:'&#9971;',name:'Coleman Medal',desc:'League leading goal kicker',winner:coleman,mine:coleman&&coleman.clubId===MY,xp:6,stat:coleman?coleman.sGoals+' goals':''},
+    {id:'bf',icon:'&#11088;',name:myC.name+' Best & Fairest',desc:'Your club best this season',winner:myP,mine:true,xp:4,stat:myP?(myP.sKicks+myP.sHandballs)+' disposals':''},
+    {id:'rising',icon:'&#127775;',name:'Rising Star',desc:'Best tier-1 player this season',winner:rising,mine:rising&&rising.clubId===MY,xp:5,stat:rising?rising._d+' disposals':''},
+    {id:'aa',icon:'&#129432;',name:'All-Australian',desc:'Top 22 players selected',winner:null,aaCount:aa.filter(p=>p.clubId===MY).length,mine:aa.some(p=>p.clubId===MY),xp:2,perPlayer:true},
+  ];
+  if(won)awardDefs.push({id:'prem',icon:'&#127885;',name:'Premiership',desc:myC.name+' '+state.season+' AFL Premiers!',winner:null,mine:true,xp:15});
+  let totalXP=0;const earned=[];
+  document.getElementById('awards-title').textContent=state.season+' Season Awards';
+  document.getElementById('awards-subtitle').textContent=won?myC.name+' are '+state.season+' AFL Premiers!':'Season complete \u2014 '+state.wins+'W '+state.losses+'L';
+  let html='';
+  awardDefs.forEach(aw=>{
+    let wName='',wClub='',xpEarned=0;
+    if(aw.id==='aa'){wName=aw.aaCount+' players selected';wClub=myC.nick;if(aw.mine&&aw.aaCount>0){xpEarned=aw.xp*aw.aaCount;totalXP+=xpEarned;earned.push({name:aw.name,xp:xpEarned});}}
+    else if(aw.id==='prem'){wName=myC.name;wClub='AFL Premier';xpEarned=aw.xp;totalXP+=xpEarned;earned.push({name:aw.name,xp:xpEarned});}
+    else if(aw.winner){wName=aw.winner.name;wClub=aw.winner.clubNick||myC.nick;if(aw.mine){xpEarned=aw.xp;totalXP+=xpEarned;earned.push({name:aw.name,xp:xpEarned,player:wName});}}
+    html+=`<div class="award-card${aw.mine?' award-mine':''}"><div class="award-icon">${aw.icon}</div><div class="award-info"><div class="award-name">${aw.name}</div><div class="award-winner">${wName}${wClub?' \u2014 '+wClub:''} ${aw.stat?'('+aw.stat+')':''}</div><div style="font-size:11px;color:var(--t2);margin-top:2px;">${aw.desc}</div></div>${aw.mine&&xpEarned>0?`<div class="award-xp">+${xpEarned} XP</div>`:''}</div>`;
+  });
+  document.getElementById('awards-list').innerHTML=html;
+  if(totalXP>0){state.xp+=totalXP;document.getElementById('awards-xp-summary').innerHTML='<div style="background:var(--gl);border:.5px solid var(--gb);border-radius:10px;padding:.875rem;text-align:center;"><div style="font-size:13px;font-weight:600;color:var(--win);margin-bottom:4px;">+'+totalXP+' Bonus XP from awards!</div></div>';}
+  else document.getElementById('awards-xp-summary').innerHTML='<div style="background:var(--s2);border-radius:10px;padding:.875rem;text-align:center;font-size:12px;color:var(--t2);">No awards won this season.</div>';
+  if(earned.length)state.awardsHistory.push({season:state.season,awards:earned,totalXP});
+  nav('awards');
+}
+
+function goToPostseason(){triggerPostseason(state.finals.bracket&&state.finals.bracket[8]&&state.finals.bracket[8].winner===MY);}
+function triggerPostseason(won){state.phase='postseason';const gf=state.finals.bracket[8];const winNick=won?clubById(MY).name:(gf&&gf.winner?clubById(gf.winner).name:'Unknown');document.getElementById('ps-trophy').textContent=won?'\u{1F3C6}':'';document.getElementById('ps-title').textContent=won?'Premiers!':'Season Over';document.getElementById('ps-subtitle').textContent=won?clubById(MY).name+' are the '+state.season+' AFL Premiers!':winNick+' win the '+state.season+' Premiership.';const lad=getSortedLadder(),pos=lad.findIndex(t=>t.id===MY)+1;document.getElementById('ps-stats').innerHTML='<div class="g3" style="max-width:400px;margin:0 auto;gap:.75rem;"><div class="metric"><div class="ml">Record</div><div class="mv" style="font-size:18px;">'+state.wins+'\u2013'+state.losses+'\u2013'+state.draws+'</div></div><div class="metric"><div class="ml">Ladder pos</div><div class="mv" style="font-size:18px;">'+pos+(pos<=3?['st','nd','rd'][pos-1]:'th')+'</div></div><div class="metric"><div class="ml">XP pool</div><div class="mv" style="font-size:18px;">'+state.xp+'</div></div></div>';nav('postseason');}
+function startPreseason(){const positions=['MID','MID','MF','FWD','FWD','DEF','DEF','RUC'];state.draftRookies=[];for(let i=0;i<40;i++){const pos=positions[i%positions.length],base=rnd(48,72);const spd=clamp(base+rnd(-8,8)+(pos==='FWD'||pos==='MF'?6:pos==='MID'?4:0));const skl=clamp(base+rnd(-8,8)+(pos==='MID'||pos==='MF'?4:0));const atk=clamp(base+rnd(-8,8)+(pos==='FWD'||pos==='MF'?10:0));const def=clamp(base+rnd(-8,8)+(pos==='DEF'?10:0));const con=clamp(base+rnd(-8,8)+(pos==='RUC'?12:pos==='MID'?6:0));const phy=clamp(base+rnd(-8,8)+(pos==='RUC'?8:0));const overall=Math.round((spd+skl+atk+def+con+phy)/6);state.draftRookies.push({name:pick(RF)+' '+pick(RL),pos,tier:1,speed:spd,skill:skl,attack:atk,defence:def,contest:con,physicality:phy,overall,picked:false});}state.draftPicks=[];document.getElementById('next-season-yr').textContent=state.season+1;renderDraftGrid();nav('draft');}
+function renderDraftGrid(){document.getElementById('draft-status').textContent='Your picks remaining: '+(2-state.draftPicks.length)+' of 2';document.getElementById('draft-confirm').disabled=state.draftPicks.length<2;document.getElementById('draft-grid').innerHTML=state.draftRookies.map((r,i)=>{const sel=state.draftPicks.includes(i),other=r.picked&&!sel;return `<div class="draft-card${sel?' selected':other?' picked':''}" onclick="toggleDraftPick(${i})"><div style="font-size:12px;font-weight:600;margin-bottom:3px;">${r.name}</div><div style="font-size:10px;color:var(--t2);margin-bottom:4px;"><span class="pb">${r.pos}</span>${other?' Picked':''}</div><div style="display:flex;gap:3px;flex-wrap:wrap;margin-bottom:4px;"><span style="font-size:10px;padding:1px 4px;border-radius:3px;background:var(--s2);">Spd ${r.speed}</span><span style="font-size:10px;padding:1px 4px;border-radius:3px;background:var(--s2);">Atk ${r.attack}</span><span style="font-size:10px;padding:1px 4px;border-radius:3px;background:var(--s2);">Def ${r.defence}</span></div><div style="font-size:13px;color:var(--t2);">OVR <strong>${r.overall}</strong></div></div>`;}).join('');}
+function toggleDraftPick(i){const r=state.draftRookies[i];if(r.picked&&!state.draftPicks.includes(i))return;const idx=state.draftPicks.indexOf(i);if(idx>=0)state.draftPicks.splice(idx,1);else if(state.draftPicks.length<2)state.draftPicks.push(i);renderDraftGrid();}
+function confirmDraft(){if(state.draftPicks.length<2)return;state.draftPicks.forEach(i=>{const r=state.draftRookies[i];r.picked=true;rosters[MY].push({...r,focus:'Skill',xpSpent:0,sGoals:0,sKicks:0,sHandballs:0,sMarks:0,sTackles:0,goals:0,behinds:0,kicks:0,handballs:0,marks:0,tackles:0,hitouts:0});});const rem=state.draftRookies.filter(r=>!r.picked);let rIdx=0;CLUBS.filter(c=>c.id!==MY).forEach(club=>{for(let p=0;p<2&&rIdx<rem.length;p++,rIdx++){const r=rem[rIdx];r.picked=true;rosters[club.id].push({...r,focus:'Skill',xpSpent:0,sGoals:0,sKicks:0,sHandballs:0,sMarks:0,sTackles:0,goals:0,behinds:0,kicks:0,handballs:0,marks:0,tackles:0,hitouts:0});}});state.season++;state.round=0;state.wins=0;state.losses=0;state.draws=0;state.phase='regular';state.fixture=genFix();state.ladder=CLUBS.map(c=>({id:c.id,w:0,l:0,d:0,pf:0,pa:0,pts:0}));state.finals={bracket:null,myEliminated:false,myFinalsResults:[]};state.selectedTeam=null;selState={};state.draftPicks=[];state.draftRookies=[];state.xp+=5;Object.values(rosters).forEach(r=>r.forEach(p=>{p.sGoals=0;p.sKicks=0;p.sHandballs=0;p.sMarks=0;p.sTackles=0;}));document.getElementById('tb-info').textContent='Season '+state.season;updateHub();nav('hub');}
+function resetGame(){if(!confirm('Change club and reset?'))return;buildRosters();_chosen=null;document.getElementById('tb-club').textContent='AFL Championship Manager';document.getElementById('tb-info').textContent='Select your club to begin';document.getElementById('nav-bar').style.display='none';renderClubSel();document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById('sc-clubsel').classList.add('active');}
+
+// TACTICS
+const tacState={style:'attack',fwd:'press',def:'zone',mid:'rotate',ruc:'contest'};
+function selTac(group,val){tacState[group]=val;const maps={style:['attack','balanced','defensive'],fwd:['press','hold','zone'],def:['man','zone','press'],mid:['rotate','lock','spread'],ruc:['contest','roam']};(maps[group]||[]).forEach(v=>{const id='tc-'+(group==='style'?'':group+'-')+v;const el=document.getElementById(id);if(el)el.classList.toggle('sel',v===val);});if(group==='style'){const pre={attack:{kick:65,press:75,risk:65,man:35},balanced:{kick:50,press:55,risk:50,man:40},defensive:{kick:38,press:38,risk:30,man:70}};const p=pre[val];['kick','press','risk','man'].forEach(k=>{document.getElementById('sl-'+k).value=p[k];document.getElementById('sv-'+k).textContent=p[k]+(k==='kick'?'%':'');});}}
+function saveTac(){state.tactics={...tacState,kickRatio:+document.getElementById('sl-kick').value,press:+document.getElementById('sl-press').value,risk:+document.getElementById('sl-risk').value,man:+document.getElementById('sl-man').value};const b=document.querySelector('#sc-tactics .btn.primary');b.textContent='Saved \u2713';setTimeout(()=>b.textContent='Save Tactics',1500);}
+
+// TRAINING
+function renderTraining(){document.getElementById('xp-disp').textContent=state.xp;document.getElementById('h-xp').textContent=state.xp;let h='';rosters[MY].forEach((p,i)=>{h+=`<div class="tp-row"><div style="min-width:150px;"><div style="font-size:12px;font-weight:600;">${p.name}</div><div style="font-size:10px;color:var(--t2);"><span class="pb">${posLabel(p)}</span> OVR ${p.overall}</div></div><div style="flex:1;display:flex;align-items:center;gap:6px;"><span style="font-size:11px;color:var(--t2);">Focus:</span><select class="fsel" onchange="chFocus(${i},this.value)">${FOCUS_OPTS.map(f=>`<option${f===p.focus?' selected':''}>${f}</option>`).join('')}</select></div><div style="display:flex;align-items:center;gap:5px;"><button class="xb" onclick="spXP(${i},-1)">\u2212</button><span style="font-size:11px;min-width:50px;text-align:center;color:var(--t2);">${p.xpSpent||0} spent</span><button class="xb" onclick="spXP(${i},1)">+</button></div></div>`;});document.getElementById('tr-list').innerHTML=h;}
+function chFocus(i,v){rosters[MY][i].focus=v;}
+function spXP(i,d){const p=rosters[MY][i];if(d>0&&state.xp<=0)return;if(d<0&&(p.xpSpent||0)<=0)return;state.xp-=d;p.xpSpent=(p.xpSpent||0)+d;if(d>0){const a=ATTR_MAP[p.focus];if(a){p[a]=clamp(p[a]+2);p.overall=Math.round((p.speed+p.skill+p.attack+p.defence+p.contest+p.physicality)/6);}}renderTraining();}
+function applyPassiveTraining(){rosters[MY].forEach(p=>{const a=ATTR_MAP[p.focus];if(a){p[a]=clamp(p[a]+1);p.overall=Math.round((p.speed+p.skill+p.attack+p.defence+p.contest+p.physicality)/6);}});state.xp+=5;}
+
+// FIXTURE & LADDER
+function renderFixture(){let h='';state.fixture.forEach(f=>{const c=clubById(f.opp),cur=f.round===state.round+1&&!f.played;let res='<span style="font-size:11px;color:var(--t2);">Upcoming</span>';if(f.played){const cls=f.result==='W'?'win':f.result==='L'?'loss':'draw';res=`<span class="result ${cls}">${f.result} ${f.myG}.${f.myB} (${f.myG*6+f.myB}) \u2014 ${f.oppG}.${f.oppB} (${f.oppG*6+f.oppB})</span>`;}h+=`<div class="fr${cur?' cur':''}"><div style="font-size:11px;color:var(--t2);min-width:36px;">Rd ${f.round}</div><div style="flex:1;font-size:12px;">${f.isHome?'vs':'@'} ${c.name}</div><div>${res}</div></div>`;});document.getElementById('fix-list').innerHTML=h;}
+function renderLadder(){const s=[...state.ladder].sort((a,b)=>b.pts-a.pts||((b.pf-b.pa)-(a.pf-a.pa)));let h='<thead><tr><th>#</th><th>Club</th><th>W</th><th>L</th><th>D</th><th>PF</th><th>PA</th><th>%</th><th>Pts</th></tr></thead><tbody>';s.forEach((t,i)=>{const c=clubById(t.id),pct=t.pa?Math.round(t.pf/t.pa*100):0;h+=`<tr${t.id===MY?' class="me"':''}><td><div class="pdot${i<8?' f':''}">${i+1}</div></td><td>${c.nick}</td><td>${t.w}</td><td>${t.l}</td><td>${t.d}</td><td>${t.pf}</td><td>${t.pa}</td><td>${pct}%</td><td style="font-weight:600;">${t.pts}</td></tr>`;});document.getElementById('lad-table').innerHTML=h+'</tbody>';}
+
+// SCOREBOARD
+function updateSB(){if(!MS)return;document.getElementById('m-hs').textContent=MS.home.score;document.getElementById('m-as').textContent=MS.away.score;document.getElementById('m-hg').textContent=MS.home.goals+'.'+MS.home.behinds;document.getElementById('m-ag').textContent=MS.away.goals+'.'+MS.away.behinds;}
+function renderMStats(){if(!MS)return;const h=MS.home.st,a=MS.away.st;const stats=[['Kicks','kicks'],['Handballs','handballs'],['Marks','marks'],['Tackles','tackles'],['Hit-outs','hitouts'],['Inside 50s','inside50']];let r='';stats.forEach(([l,k])=>{const hv=h[k]||0,av=a[k]||0,tot=hv+av||1,hp=Math.round(hv/tot*100);r+=`<div class="sr"><span class="sv h">${hv}</span><div class="sbar"><div class="sbh" style="width:${hp}%"></div><div class="sba" style="width:${100-hp}%"></div></div><span class="sv a">${av}</span></div><div style="text-align:center;font-size:10px;color:var(--t2);margin-top:-3px;margin-bottom:3px;">${l}</div>`;});document.getElementById('m-stats').innerHTML=r;const mets=[['Clearances','clearances'],['Cont.Poss','contestedPoss'],['Shots','shots'],['I50s','inside50']];document.getElementById('m-met').innerHTML=mets.map(([l,k])=>`<div class="metric" style="padding:7px;"><div class="ml" style="font-size:10px;">${l}</div><div style="display:flex;justify-content:center;gap:6px;margin-top:2px;"><span style="font-weight:600;color:var(--home);">${h[k]||0}</span><span style="color:var(--t2);">\u00b7</span><span style="font-weight:600;color:var(--away);">${a[k]||0}</span></div></div>`).join('');}
+
+// HUB
+function updateHub(){
+  if(!state)return;
+  document.getElementById('h-rnd').textContent=state.round+'/22';
+  document.getElementById('h-wld').textContent=state.wins+'\u2013'+state.losses+'\u2013'+state.draws;
+  document.getElementById('h-xp').textContent=state.xp;
+  document.getElementById('tb-info').textContent='Season '+state.season+' \u00b7 Round '+state.round;
+  const s=[...state.ladder].sort((a,b)=>b.pts-a.pts||((b.pf-b.pa)-(a.pf-a.pa)));
+  const pos=s.findIndex(t=>t.id===MY)+1;
+  document.getElementById('h-pos').textContent=pos+(pos<=3?['st','nd','rd'][pos-1]:'th');
+  if(state.phase==='finals'){document.getElementById('h-next').textContent='Finals series in progress';document.getElementById('h-venue').textContent='';document.getElementById('h-ovr').textContent='';document.getElementById('h-play').textContent='Go to Finals';document.getElementById('h-play').onclick=()=>nav('finals');document.getElementById('h-play').disabled=false;}
+  else{const nxt=state.fixture.find(f=>!f.played);document.getElementById('h-play').textContent='Select Team & Play';document.getElementById('h-play').onclick=goToSelection;if(nxt){const opp=clubById(nxt.opp);document.getElementById('h-next').textContent='Rd '+nxt.round+' \u2014 '+(nxt.isHome?'Home':'Away')+' vs '+opp.name;document.getElementById('h-venue').textContent=nxt.isHome?clubById(MY).home:opp.home;const mo=teamOVR(MY),oo=teamOVR(nxt.opp);document.getElementById('h-ovr').innerHTML='Your OVR: <strong>'+mo+'</strong> \u00b7 Opp OVR: <strong>'+oo+'</strong> \u00b7 '+(mo>oo?'<span style="color:var(--win);">Favoured</span>':'<span style="color:var(--loss);">Underdog</span>');document.getElementById('h-play').disabled=false;}else{document.getElementById('h-next').textContent='All rounds complete';document.getElementById('h-play').disabled=true;}}
+  const rec=state.fixture.filter(f=>f.played).slice(-3).reverse();
+  document.getElementById('h-res').innerHTML=rec.length?rec.map(f=>{const c=clubById(f.opp);return '<div class="rstrip"><span>'+c.nick+' (Rd '+f.round+')</span><span class="result '+(f.result==='W'?'win':f.result==='L'?'loss':'draw')+'">'+f.result+' '+f.myG+'.'+f.myB+' ('+(f.myG*6+f.myB)+')</span></div>';}).join(''):'<span style="color:var(--t2);font-size:12px;">No matches yet.</span>';
+  if(state.awardsHistory&&state.awardsHistory.length){document.getElementById('awards-hub-wrap').style.display='block';document.getElementById('awards-hub-list').innerHTML=state.awardsHistory.map(yr=>'<div style="font-size:12px;padding:5px 0;border-bottom:.5px solid var(--border);display:flex;justify-content:space-between;"><span><strong>'+yr.season+'</strong> \u2014 '+yr.awards.map(a=>a.name).join(', ')+'</span><span class="xp-pill">+'+yr.totalXP+' XP</span></div>').join('');}
+}
+
+// ============ ADMIN PANEL ============
+let adminEditIdx=null;
+function openAdmin(){renderAdminList();nav('admin');}
+function renderAdminList(){
+  const search=(document.getElementById('admin-search')||{value:''}).value.toLowerCase();
+  const posF=(document.getElementById('admin-pos-filter')||{value:'ALL'}).value;
+  let players=rosters[MY].map((p,i)=>({...p,i}));
+  if(search)players=players.filter(p=>p.name.toLowerCase().includes(search));
+  if(posF!=='ALL')players=players.filter(p=>p.pos===posF);
+  let h='';
+  players.forEach(p=>{
+    const ob=p.overall>=85?'ob-e':p.overall>=75?'ob-g':p.overall>=65?'ob-a':'ob-l';
+    const posLbl=p.pos==='MF'?'<span style="font-size:10px;background:rgba(130,60,200,.12);color:#6620b0;border-radius:3px;padding:1px 5px;">MF</span>':'<span class="pb">'+p.pos+'</span>';
+    h+=`<div class="admin-player-row" onclick="openEditPlayer(${p.i})">
+      <div style="flex:1;min-width:0;"><div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.name}</div><div style="font-size:10px;color:var(--t2);margin-top:2px;">${posLbl}</div></div>
+      <div style="display:flex;gap:4px;align-items:center;flex-shrink:0;">
+        ${ob?`<span class="ob ${ob}" style="font-size:10px;width:26px;height:18px;">${p.overall}</span>`:''}
+        <span style="font-size:10px;color:var(--t2);">Spd ${p.speed}</span>
+        <span style="font-size:10px;color:var(--t2);">Atk ${p.attack}</span>
+        <span style="font-size:10px;color:var(--t2);">Def ${p.defence}</span>
+        <span style="font-size:10px;color:var(--green);">&#9998;</span>
+      </div></div>`;
+  });
+  document.getElementById('admin-player-list').innerHTML=h||'<div style="color:var(--t2);font-size:12px;padding:1rem;">No players found.</div>';
+}
+function openEditPlayer(idx){
+  adminEditIdx=idx;
+  const p=rosters[MY][idx];
+  document.getElementById('ed-name').value=p.name;
+  document.getElementById('ed-pos').value=p.pos;
+  document.getElementById('ed-tier').value=p.tier;
+  ['speed','skill','attack','defence','contest','physicality'].forEach(attr=>{
+    document.getElementById('ed-'+attr).value=p[attr];
+    document.getElementById('edv-'+attr).textContent=p[attr];
+  });
+  updateEditOVR();
+  document.getElementById('admin-edit-panel').style.display='block';
+  document.getElementById('admin-edit-panel').scrollIntoView({behavior:'smooth'});
+}
+function updateEditOVR(){
+  const attrs=['speed','skill','attack','defence','contest','physicality'];
+  const vals=attrs.map(a=>parseInt(document.getElementById('ed-'+a).value)||40);
+  const ovr=Math.round(vals.reduce((s,v)=>s+v,0)/6);
+  document.getElementById('ed-ovr-display').textContent='Overall: '+ovr;
+}
+function saveEditPlayer(){
+  if(adminEditIdx===null)return;
+  const p=rosters[MY][adminEditIdx];
+  p.name=document.getElementById('ed-name').value.trim()||p.name;
+  p.pos=document.getElementById('ed-pos').value;
+  p.tier=parseInt(document.getElementById('ed-tier').value);
+  ['speed','skill','attack','defence','contest','physicality'].forEach(attr=>{
+    p[attr]=clamp(parseInt(document.getElementById('ed-'+attr).value)||p[attr]);
+  });
+  p.overall=Math.round((p.speed+p.skill+p.attack+p.defence+p.contest+p.physicality)/6);
+  document.getElementById('admin-edit-panel').style.display='none';
+  adminEditIdx=null;
+  renderAdminList();
+  showAdminToast('Player saved \u2713');
+}
+function cancelEdit(){document.getElementById('admin-edit-panel').style.display='none';adminEditIdx=null;}
+function showAdminToast(msg){
+  const t=document.getElementById('admin-toast');
+  t.textContent=msg;t.style.opacity='1';
+  setTimeout(()=>t.style.opacity='0',2000);
+}
+function addNewPlayer(){
+  const name='New Player '+Date.now().toString().slice(-4);
+  rosters[MY].push({name,pos:'MID',tier:1,speed:65,skill:65,attack:65,defence:65,contest:65,physicality:65,overall:65,focus:'Skill',xpSpent:0,sGoals:0,sKicks:0,sHandballs:0,sMarks:0,sTackles:0,goals:0,behinds:0,kicks:0,handballs:0,marks:0,tackles:0,hitouts:0});
+  openEditPlayer(rosters[MY].length-1);
+  renderAdminList();
+}
+
+// NAV
+function nav(s){
+  document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));
+  document.getElementById('sc-'+s).classList.add('active');
+  const tabs=['hub','squad','stats','tactics','training','fixture','ladder'];
+  document.querySelectorAll('.nt').forEach((t,i)=>t.classList.toggle('active',tabs[i]===s));
+  if(s==='squad')renderSquad();
+  if(s==='stats')renderStats();
+  if(s==='training')renderTraining();
+  if(s==='fixture')renderFixture();
+  if(s==='ladder')renderLadder();
+  if(s==='hub')updateHub();
+  if(s==='finals')renderFinalsBracket();
+  if(s==='admin')renderAdminList();
+}
+
+renderClubSel();
+</script>
+</body>
+</html>
