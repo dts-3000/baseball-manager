@@ -123,8 +123,8 @@ function enrichLineup(lu){
   return lu.map(p=>({...p,id:uid(),
     salary:p.o>=85?rnd(18,36):p.o>=75?rnd(8,18):rnd(2,8),years:rnd(1,4),
     avg:(rnd(230,310)/1000).toFixed(3),hr:rnd(p.o>=85?18:4,p.o>=85?45:25),
-    opsPlus:rnd(p.o>=85?118:78,p.o>=85?178,118),
-    war:(rnd(p.o>=85?28:4,p.o>=85?88,28)/10).toFixed(1)}));
+    opsPlus:rnd(p.o>=85?118:78,p.o>=85?178:118),
+    war:(rnd(p.o>=85?28:4,p.o>=85?88:28)/10).toFixed(1)}));
 }
 function enrichRotation(ro){
   return ro.map(p=>({...p,id:uid(),
