@@ -359,7 +359,8 @@ export default function App() {
     if(!avail.length){toast("No fresh arms.");return;}
     const newBp=bullpen.map((b,i)=>b.id===avail[0].id?{...b,used:true,fatigue:b.fatigue+35}:b);
     setBullpen(newBp);setGame(g=>({...g,sp:newBp.find(b=>b.id===avail[0].id),pitchCount:0}));
-    addLog(`⇄ Manual: ${avail[0].name} enters.`,"e");toast(`${avail[0].name} pitching.`);
+    setPbp(prev=>[{msg:`⇄ Manual: ${avail[0].name} enters.`,cls:"e"},...prev].slice(0,80));
+    toast(`${avail[0].name} pitching.`);
   }
 
   // ── Season sim ──────────────────────────────────────────────────────────
