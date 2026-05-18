@@ -221,7 +221,7 @@ export default function App() {
     });
   }
 
-  // ── Game engine ────────────────────────────────────────────────────────────
+  // ── Game engine — pure functional, no setState inside loop ────────────────
   function loadGame(idx){
     const g=schedule[idx];
     if(!g||g.played){toast("Already played.");return;}
@@ -234,100 +234,121 @@ export default function App() {
     setTab("game");
   }
 
-  function simAB(g0){
-    const g=g0||game;
-    if(!g||g.gameOver)return;
+  // Pure step — no setState, returns new state + logs
+  function stepAB(g, myOvr, bp){
+    if(!g||g.gameOver) return null;
     const myBat=(g.myHome&&!g.top)||(!g.myHome&&g.top);
-    const offOvr=myBat?Math.round(lineup.reduce((s,p)=>s+p.o,0)/lineup.length):g.oppOvr;
+    const offOvr=myBat?myOvr:g.oppOvr;
     const defOvr=g.sp?g.sp.o:70;
     const fp=Math.max(0,(g.pitchCount-60)*0.003);
     const hrP=0.032+(offOvr/100)*0.018;
-    const hitP=0.27+(offOvr-defOvr)*0.003-fp;
+    const hitP=Math.max(0.08,0.27+(offOvr-defOvr)*0.003-fp);
     const wkP=0.085+fp;
     const kP=0.22-(offOvr-defOvr)*0.002+fp*0.4;
     const r=Math.random();
-    const inn=(g.top?"▲":"▽")+g.inn;
+    const innStr=(g.top?"▲":"▽")+g.inn;
     const bTeam=g.top?g.awayA:g.homeA;
-    const batName=myBat&&lineup.length?lineup[g.batIdx%lineup.length].n:bTeam;
-    let ng={...g,pitchCount:g.pitchCount+rnd(3,7),batIdx:g.batIdx+1};
-    let bases=[...g.bases];let runs=0;
+    const logs=[];
+    let hS=g.hS,aS=g.aS,bases=[...g.bases],outs=g.outs;
+    let pitchCount=g.pitchCount+rnd(3,7),batIdx=(g.batIdx||0)+1,sp=g.sp;
+    let newBp=[...bp],runs=0;
+
     if(r<hrP){
       let ct=1;bases.forEach(b=>{if(b)ct++;});bases=[false,false,false];runs=ct;
-      addLog(`${inn} ${batName} — HOME RUN! ${ct} run${ct>1?"s":""} score.`,"sc");
+      logs.push({msg:`${innStr} ${bTeam} — HOME RUN! ${ct} run${ct>1?"s":""} score.`,cls:"sc"});
     } else if(r<hrP+hitP){
       const ht=Math.random()<0.58?"Single":Math.random()<0.6?"Double":"Triple";
       if(ht==="Single"){if(bases[2])runs++;bases=[true,bases[0],bases[1]];}
       else if(ht==="Double"){if(bases[2])runs++;if(bases[1])runs++;bases=[false,true,bases[0]];}
       else{bases.forEach(b=>{if(b)runs++;});bases=[false,false,true];}
-      addLog(`${inn} ${batName} — ${ht}.${runs?` ${runs} run${runs>1?"s":""} score.`:""}`,runs?"sc":"h");
+      logs.push({msg:`${innStr} ${bTeam} — ${ht}.${runs?` ${runs} run${runs>1?"s":""} score.`:""}`,cls:runs?"sc":"h"});
     } else if(r<hrP+hitP+wkP){
-      if(bases[0]&&bases[1]&&bases[2]){runs=1;addLog(`${inn} ${batName} — Walk, RBI.`,"h");}
-      else{bases=[true,...bases.slice(0,2)];addLog(`${inn} ${batName} — Walk.`,"");}
+      if(bases[0]&&bases[1]&&bases[2]){runs=1;logs.push({msg:`${innStr} ${bTeam} — Walk, RBI.`,cls:"h"});}
+      else{bases=[true,...bases.slice(0,2)];logs.push({msg:`${innStr} ${bTeam} — Walk.`,cls:""});}
     } else if(r<hrP+hitP+wkP+kP){
-      ng={...ng,outs:g.outs+1};addLog(`${inn} ${batName} — Strikeout.`,"o");
+      outs++;logs.push({msg:`${innStr} ${bTeam} — Strikeout.`,cls:"o"});
     } else {
-      ng={...ng,outs:g.outs+1};addLog(`${inn} ${batName} — ${Math.random()<.5?"Groundout":"Flyout"}.`,"o");
+      outs++;logs.push({msg:`${innStr} ${bTeam} — ${Math.random()<.5?"Groundout":"Flyout"}.`,cls:"o"});
     }
-    let hS=g.hS,aS=g.aS;
-    if(g.top)aS+=runs;else hS+=runs;
-    let sp=ng.sp;
-    let newBp=bullpen;
-    if(ng.pitchCount>85&&Math.random()>0.65&&!myBat){
-      const avail=bullpen.filter(b=>!b.used&&b.fatigue<70);
+
+    if(g.top) aS+=runs; else hS+=runs;
+
+    if(pitchCount>85&&Math.random()>0.65&&!myBat){
+      const avail=newBp.filter(b=>!b.used&&b.fatigue<70);
       if(avail.length){
-        newBp=bullpen.map(b=>b.id===avail[0].id?{...b,used:true,fatigue:b.fatigue+30}:b);
-        sp=newBp.find(b=>b.id===avail[0].id);
-        ng.pitchCount=0;addLog(`⇄ ${sp.name} enters.`,"e");setBullpen(newBp);
+        const ri=newBp.findIndex(b=>b.id===avail[0].id);
+        newBp[ri]={...newBp[ri],used:true,fatigue:newBp[ri].fatigue+30};
+        sp=newBp[ri];pitchCount=0;
+        logs.push({msg:`⇄ ${sp.name} enters.`,cls:"e"});
       }
     }
-    let outs=ng.outs!==undefined?ng.outs:g.outs;
-    let inn2=g.inn,top2=g.top;
+
+    let inn=g.inn,top=g.top,gameOver=false;
     if(outs>=3){
       outs=0;bases=[false,false,false];
-      if(top2)top2=false;else{inn2++;top2=true;ng.pitchCount=0;}
-      if(inn2>9&&hS!==aS){endGame({...ng,bases,hS,aS,outs,inn:inn2,top:top2,sp});return;}
-      if(inn2>12){endGame({...ng,bases,hS,aS,outs,inn:inn2,top:top2,sp});return;}
+      if(top) top=false; else{inn++;top=true;pitchCount=0;}
+      if((inn>9&&hS!==aS)||inn>12) gameOver=true;
     }
-    const next={...ng,bases,hS,aS,outs,inn:inn2,top:top2,sp};
-    setGame(next);
-    return next;
+    return{newGame:{...g,hS,aS,bases,outs,inn,top,pitchCount,batIdx,sp,gameOver},logs,newBp,gameOver};
   }
 
-  function addLog(msg,cls){setPbp(prev=>[{msg,cls},...prev].slice(0,80));}
-
-  function endGame(finalG){
-    const g=finalG||game;
+  function commitGameEnd(g,allLogs,finalBp){
     const myWin=(g.myHome&&g.hS>g.aS)||(!g.myHome&&g.aS>g.hS);
     const mS=g.myHome?g.hS:g.aS,oS=g.myHome?g.aS:g.hS;
     const nW=wR.current+(myWin?1:0),nL=lR.current+(myWin?0:1);
     wR.current=nW;lR.current=nL;
-    setWins(nW);setLosses(nL);
-    addLog(`FINAL: ${g.homeA} ${g.hS} — ${g.awayA} ${g.aS}. ${myWin?"WIN!":"Loss."}`,myWin?"sc":"o");
+    const finalLog={msg:`FINAL: ${g.homeA} ${g.hS} — ${g.awayA} ${g.aS}. ${myWin?"WIN! 🎉":"Loss."}`,cls:myWin?"sc":"o"};
+    setPbp([finalLog,...allLogs].slice(0,80));
     setGame({...g,gameOver:true});
+    setBullpen(finalBp);
+    setWins(nW);setLosses(nL);
     setSchedule(prev=>prev.map((s,i)=>i===g.sidx?{...s,played:true,result:myWin?"W":"L",mS,oS}:s));
-    updateStandings(myWin,nW,nL);
-    toast(myWin?"Victory!":"Tough loss.");
-  }
-
-  function updateStandings(myWin,nW,nL){
     setStandings(prev=>{
       const next={};
       Object.entries(prev).forEach(([div,teams])=>{
         next[div]=teams.map(t=>{
-          if(t.isMe)return{...t,w:nW,l:nL};
+          if(t.isMe) return{...t,w:nW,l:nL};
           const w=rnd(0,1);return{...t,w:t.w+w,l:t.l+(1-w)};
         }).sort((a,b)=>b.w-a.w||(a.l-b.l));
       });
       stR.current=next;return next;
     });
+    toast(myWin?"Victory!":"Tough loss.");
+  }
+
+  function simOnePitch(){
+    if(!game||game.gameOver) return;
+    const myOvr=Math.round(lineup.reduce((s,p)=>s+p.o,0)/lineup.length);
+    const result=stepAB(game,myOvr,bullpen);
+    if(!result) return;
+    if(result.gameOver){commitGameEnd(result.newGame,result.logs,result.newBp);}
+    else{setGame(result.newGame);setBullpen(result.newBp);setPbp(prev=>[...result.logs,...prev].slice(0,80));}
   }
 
   function simHalf(){
-    if(!game||game.gameOver)return;
-    let g=game;const h=g.top;
-    for(let i=0;i<50&&!g?.gameOver&&g?.top===h;i++){g=simAB(g)||g;}
+    if(!game||game.gameOver) return;
+    const myOvr=Math.round(lineup.reduce((s,p)=>s+p.o,0)/lineup.length);
+    let g=game,bp=[...bullpen],allLogs=[];
+    const startTop=g.top;
+    for(let i=0;i<60&&!g.gameOver&&g.top===startTop;i++){
+      const res=stepAB(g,myOvr,bp);if(!res) break;
+      allLogs=[...res.logs,...allLogs];g=res.newGame;bp=res.newBp;
+      if(res.gameOver){commitGameEnd(g,allLogs,bp);return;}
+    }
+    setGame(g);setBullpen(bp);setPbp(prev=>[...allLogs,...prev].slice(0,80));
   }
-  function simFull(){if(!game||game.gameOver)return;let g=game;for(let i=0;i<300&&!g?.gameOver;i++){g=simAB(g)||g;}}
+
+  function simFull(){
+    if(!game||game.gameOver) return;
+    const myOvr=Math.round(lineup.reduce((s,p)=>s+p.o,0)/lineup.length);
+    let g=game,bp=[...bullpen],allLogs=[];
+    for(let i=0;i<400&&!g.gameOver;i++){
+      const res=stepAB(g,myOvr,bp);if(!res) break;
+      allLogs=[...res.logs,...allLogs];g=res.newGame;bp=res.newBp;
+      if(res.gameOver){commitGameEnd(g,allLogs,bp);return;}
+    }
+    setGame(g);setBullpen(bp);setPbp(prev=>[...allLogs,...prev].slice(0,80));
+  }
   function nextGame(){
     const idx=schedule.findIndex(g=>!g.played);
     if(idx<0){toast("Season over! Check Playoffs.");return;}
@@ -367,8 +388,11 @@ export default function App() {
       const next={};
       Object.entries(prev).forEach(([div,teams])=>{
         next[div]=teams.map(t=>{
-          if(t.isMe)return{...t,w:nW,l:nL};
-          const w=rnd(0,addW+addL);return{...t,w:t.w+w,l:t.l+(addW+addL-w)};
+          if(t.isMe) return{...t,w:nW,l:nL};
+          // each other team plays the same number of games as us this week
+          const gamesPlayed=addW+addL;
+          const theirW=Array.from({length:gamesPlayed},()=>rnd(0,1)).reduce((a,b)=>a+b,0);
+          return{...t,w:t.w+theirW,l:t.l+(gamesPlayed-theirW)};
         }).sort((a,b)=>b.w-a.w||(a.l-b.l));
       });
       stR.current=next;return next;
@@ -552,7 +576,7 @@ export default function App() {
               {pbp.map((l,i)=><div key={i} style={{padding:"2px 0",borderBottom:"1px solid #1e3558",color:l.cls==="sc"?"#c9a84c":l.cls==="h"?"#4fc76a":l.cls==="o"?"#4a5d7a":l.cls==="e"?"#e8c040":"#d4c9a8"}}>{l.msg}</div>)}
             </div>
             <div style={{display:"flex",gap:6,justifyContent:"center",flexWrap:"wrap"}}>
-              <button style={C.btn(false)} onClick={()=>simAB()}>⊳ Pitch</button>
+              <button style={C.btn(false)} onClick={simOnePitch}>⊳ Pitch</button>
               <button style={C.btn(false)} onClick={simHalf}>⊳⊳ Half inning</button>
               <button style={C.btn(true)} onClick={simFull}>⊳⊳⊳ Full game</button>
               <button style={C.btn(false)} onClick={bullpenChange}>🔄 Pitching change</button>
