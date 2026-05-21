@@ -249,7 +249,7 @@ const TEAMS = [
 
 const FN=["Luis","Carlos","Miguel","Jose","Juan","Alex","David","Jorge","Angel","Diego","Marco","Roberto","Ty","Bo","Jake","Chase","Cole","Blake","Reid","Drew","Mason","Ethan","Noah","Liam"];
 const LN=["Rivera","Santos","Garcia","Lopez","Martinez","Torres","Reyes","Flores","Castro","Mendez","Ramirez","Perez","Morales","Chavez","Ortega","Jimenez","Alvarez","Romero","Vega","Cruz"];
-const ALLPOS=["C","1B","2B","3B","SS","LF","CF","RF","SP","RP"];
+
 function rnd(a,b){return Math.floor(Math.random()*(b-a+1))+a;}
 function pick(arr){return arr[Math.floor(Math.random()*arr.length)];}
 function uid(){return Math.random().toString(36).slice(2,8);}
@@ -589,7 +589,6 @@ export default function App(){
     if(trainWeekPts<pts){toast(`Not enough training points (${trainWeekPts} left)`);return;}
     setFarm(prev=>prev.map(p=>{
       if(p.id!==id)return p;
-      const isSP=p.pos==="SP"||p.pos==="RP";
       // Training boosts: progress + chance to boost relevant stat
       const progressGain=pts*4;
       const newProgress=Math.min(99,p.progress+progressGain);
