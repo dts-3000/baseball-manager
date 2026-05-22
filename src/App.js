@@ -99,7 +99,6 @@ const C={
   td:{padding:"6px 7px",borderBottom:"1px solid #1e3558",fontSize:12,color:"#d4c9a8"},
   btn:(pri,sm)=>({background:pri?"#c9a84c":"#16263d",color:pri?"#060e1a":"#d4c9a8",border:pri?"none":"1px solid #1e3558",padding:sm?"4px 9px":"7px 13px",borderRadius:5,fontSize:sm?10:11,cursor:"pointer",fontFamily:"inherit",fontWeight:pri?500:400,margin:2}),
   btnGrn:{background:"#1a5c2a",color:"#9fe8b0",border:"none",padding:"4px 9px",borderRadius:4,fontSize:10,cursor:"pointer",fontFamily:"inherit",margin:2},
-  btnRed:{background:"#5c1a1a",color:"#e89f9f",border:"none",padding:"4px 9px",borderRadius:4,fontSize:10,cursor:"pointer",fontFamily:"inherit",margin:2},
   pb:{display:"inline-block",fontSize:9,fontWeight:500,padding:"1px 4px",borderRadius:3,background:"#16263d",color:"#8ab4e8"},
 };
 
@@ -136,7 +135,7 @@ export default function App(){
   const [game,setGame]=useState(null);
   const [notif,setNotif]=useState("");
   const [trainPts,setTrainPts]=useState(10);
-  const [swapSrc,setSwapSrc]=useState(null); // {group,idx} for roster swaps
+
   const wR=useRef(0),lR=useRef(0),stR=useRef({});
 
   function toast(msg){setNotif(msg);setTimeout(()=>setNotif(""),2800);}
@@ -161,66 +160,53 @@ export default function App(){
 
   // ── ROSTER MANAGEMENT ────────────────────────────────────────────────────
   // Each player card can be clicked to start a swap, then click another to complete it
-  function handlePlayerClick(group,idx){
-    if(!swapSrc){
-      setSwapSrc({group,idx});
-      toast("Selected — click another player to swap, or click same to cancel.");
-      return;
-    }
-    if(swapSrc.group===group&&swapSrc.idx===idx){setSwapSrc(null);return;}
-    // Perform swap between any two groups
-    const groups={lineup:[...lineup],rotation:[...rotation],bullpen:[...bullpen],bench:[...bench]};
-    const srcPlayer=groups[swapSrc.group][swapSrc.idx];
-    const dstPlayer=groups[group][idx];
-    groups[swapSrc.group][swapSrc.idx]=dstPlayer;
-    groups[group][idx]=srcPlayer;
-    setLineup(groups.lineup);setRotation(groups.rotation);setBullpen(groups.bullpen);setBench(groups.bench);
-    setSwapSrc(null);toast(`Swapped ${srcPlayer.n} ↔ ${dstPlayer.n}`);
-  }
 
-  function dfa(group,idx){
-    // Release / DFA a player — moves them to bench or removes from 40-man
-    const groups={lineup:[...lineup],rotation:[...rotation],bullpen:[...bullpen],bench:[...bench]};
-    const p=groups[group][idx];
-    if(group==="bench"){
-      groups.bench=groups.bench.filter((_,i)=>i!==idx);
-      toast(`${p.n} released from the 40-man roster.`);
-    } else {
-      groups[group]=groups[group].filter((_,i)=>i!==idx);
-      groups.bench=[...groups.bench,p];
-      toast(`${p.n} moved to bench.`);
-    }
-    setLineup(groups.lineup);setRotation(groups.rotation);setBullpen(groups.bullpen);setBench(groups.bench);
+  function movePlayer(fromGroup,fromId,toGroup){
+    // Get current arrays directly from state refs
+    const allGroups={lineup:[...lineup],rotation:[...rotation],bullpen:[...bullpen],bench:[...bench]};
+    const src=allGroups[fromGroup];
+    const idx=src.findIndex(p=>p.id===fromGroup+"_"+fromId||p.id===fromId);
+    if(idx<0){toast("Player not found — try again.");return;}
+    const player=src[idx];
+    allGroups[fromGroup]=src.filter((_,i)=>i!==idx);
+    if(toGroup!=="release") allGroups[toGroup]=[...allGroups[toGroup],player];
+    setLineup([...allGroups.lineup]);
+    setRotation([...allGroups.rotation]);
+    setBullpen([...allGroups.bullpen]);
+    setBench([...allGroups.bench]);
+    toast(toGroup==="release"?`${player.n} released`:`${player.n} → ${toGroup}`);
   }
 
   function signFA(fa){
-    // FA always goes to bench first — user then swaps them into lineup/rotation as desired
-    setBench(prev=>[...prev,{...mkPlayer({n:fa.n,p:fa.p,o:fa.o,a:fa.age},fa.p==="SP"||fa.p==="RP"),salary:fa.salary,years:fa.years}]);
+    const p=mkPlayer({n:fa.n,p:fa.p,o:fa.o,a:fa.age},fa.p==="SP"||fa.p==="RP");
+    p.salary=fa.salary;p.years=fa.years;
+    setBench(prev=>[...prev,p]);
     setFaList(prev=>prev.filter(f=>f.id!==fa.id));
-    toast(`Signed ${fa.n} — added to bench. Use Roster to slot them in.`);
+    toast(`Signed ${fa.n} → Bench. Use Roster tab to promote them.`);
   }
 
   function acceptTrade(offer){
-    // Traded player replaces the sender in lineup; old player released to bench
-    const newPlayer={...mkPlayer({n:offer.theirName,p:offer.theirPos,o:offer.theirOvr,a:rnd(22,35)},false),salary:rnd(5,20),years:rnd(1,3)};
-    const idx=lineup.findIndex(p=>p.id===offer.myPlayer.id);
-    if(idx>=0){
-      const old=lineup[idx];
-      setLineup(prev=>prev.map((p,i)=>i===idx?newPlayer:p));
-      setBench(prev=>[...prev,old]);
-    } else {
-      setBench(prev=>[...prev,newPlayer]);
+    const newP=mkPlayer({n:offer.theirName,p:offer.theirPos,o:offer.theirOvr,a:rnd(22,34)},false);
+    const sentId=offer.myPlayer?.id;
+    if(sentId){
+      const inLu=lineup.find(p=>p.id===sentId);
+      const inRo=rotation.find(p=>p.id===sentId);
+      if(inLu){setLineup(prev=>prev.filter(p=>p.id!==sentId));setBench(prev=>[...prev,inLu]);}
+      else if(inRo){setRotation(prev=>prev.filter(p=>p.id!==sentId));setBench(prev=>[...prev,inRo]);}
     }
+    setBench(prev=>[...prev,newP]);
     setTradeOffers(prev=>prev.filter(o=>o.id!==offer.id));
-    toast(`Trade accepted! ${offer.theirName} added. ${offer.myPlayer?.n} moved to bench.`);
+    toast(`${offer.theirName} on bench — promote via Roster tab.`);
   }
 
   function callUp(id){
     const p=farm.find(x=>x.id===id);if(!p)return;
-    const newPlayer={...mkPlayer({n:p.n,p:p.pos,o:p.currentOvr,a:p.age},p.pos==="SP"||p.pos==="RP"),salary:rnd(1,3),years:1};
-    setBench(prev=>[...prev,newPlayer]);
+    const isSP=(p.pos||p.p)==="SP"||(p.pos||p.p)==="RP";
+    const newP=mkPlayer({n:p.n,p:p.pos||p.p,o:p.currentOvr,a:p.age||22},isSP);
+    newP.salary=rnd(1,3);newP.years=1;
+    setBench(prev=>[...prev,newP]);
     setFarm(prev=>prev.filter(x=>x.id!==id));
-    toast(`${p.n} called up — check bench to slot them into lineup/rotation.`);
+    toast(`${p.n} called up → Bench. Promote via Roster tab.`);
   }
 
   function draftPick(id){
@@ -364,23 +350,6 @@ export default function App(){
   const war=[...lineup,...rotation].reduce((s,p)=>s+parseFloat(p.war||0),0).toFixed(1);
   const tot=wins+losses;const pct=tot>0?(wins/tot).toFixed(3):"—";
 
-  function PlayerRow({p,group,idx,showStats="hitter"}){
-    const isSel=swapSrc&&swapSrc.group===group&&swapSrc.idx===idx;
-    return(
-      <tr style={{background:isSel?"#1a2a10":undefined,cursor:"pointer"}} onClick={()=>handlePlayerClick(group,idx)}>
-        <td style={{...C.td,color:isSel?"#c9a84c":undefined}}>{isSel?"✓ ":""}<PB>{p.p}</PB></td>
-        <td style={C.td}>{p.n}</td>
-        <td style={C.td}><OVR o={p.o}/></td>
-        <td style={C.td}>{p.a}</td>
-        {showStats==="hitter"&&<><td style={C.td}>{p.avg||"—"}</td><td style={C.td}>{p.hr||"—"}</td><td style={C.td}>{p.opsPlus||"—"}</td></>}
-        {showStats==="pitcher"&&<><td style={C.td}>{p.era||"—"}</td><td style={C.td}>{p.fip||"—"}</td><td style={C.td}>{p.k9||"—"}</td></>}
-        {showStats==="bullpen"&&<><td style={C.td}>{p.era||"—"}</td><td style={C.td}>{p.saves||0}</td><td style={C.td}><div style={{height:4,background:"#1e3558",borderRadius:2,width:50}}><div style={{height:4,width:`${p.fatigue||0}%`,background:(p.fatigue||0)>60?"#c04040":(p.fatigue||0)>30?"#c0a030":"#4fc76a",borderRadius:2}}/></div></td></>}
-        <td style={C.td}><span style={{fontSize:10,color:"#4a5d7a"}}>${p.salary||1}M/{p.years||1}yr</span></td>
-        <td style={C.td}><button style={C.btnRed} onClick={e=>{e.stopPropagation();dfa(group,idx);}}>↓ Bench</button></td>
-      </tr>
-    );
-  }
-
   // ── TEAM SELECT ───────────────────────────────────────────────────────────
   if(!started){return(
     <div style={C.app}>
@@ -414,46 +383,103 @@ export default function App(){
         <span style={{fontSize:11,color:"#4a5d7a",marginLeft:"auto"}}>{season} • Wk {week}</span>
         <span style={{fontSize:11,color:pay>189?"#e05050":"#6dbf7e"}}>${pay}M</span>
       </div>
-      <div style={C.nav}>{TABS.map(([id,label])=><button key={id} style={C.nb(tab===id)} onClick={()=>{setTab(id);setSwapSrc(null);}}>{label}</button>)}</div>
+      <div style={C.nav}>{TABS.map(([id,label])=><button key={id} style={C.nb(tab===id)} onClick={()=>setTab(id)}>{label}</button>)}</div>
       <div style={C.pg}>
 
         {/* ── ROSTER ── */}
         {tab==="roster"&&<div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,marginBottom:12}}>
             {[["TEAM WAR",war,"Lg avg 38.1"],["wRC+",wrc,"Offense"],["FIP",fip,"Rotation"],[`RECORD`,`${wins}-${losses}`,pct],["PAYROLL",`$${pay}M`,pay>189?"Luxury tax":"Under cap"]].map(([l,v,s])=>(
-              <div key={l} style={C.sc||{background:"#111d30",borderRadius:6,padding:"10px 11px"}}><div style={{fontSize:10,color:"#4a5d7a",marginBottom:3}}>{l}</div><div style={{fontSize:18,fontWeight:500,color:"#d4c9a8"}}>{v}</div><div style={{fontSize:10,color:"#4a5d7a",marginTop:2}}>{s}</div></div>
+              <div key={l} style={{background:"#111d30",borderRadius:6,padding:"10px 11px"}}><div style={{fontSize:10,color:"#4a5d7a",marginBottom:3}}>{l}</div><div style={{fontSize:18,fontWeight:500,color:"#d4c9a8"}}>{v}</div><div style={{fontSize:10,color:"#4a5d7a",marginTop:2}}>{s}</div></div>
             ))}
           </div>
-          {swapSrc&&<div style={{background:"#1a2a10",border:"1px solid #4fc76a",borderRadius:5,padding:"8px 12px",marginBottom:10,fontSize:12,color:"#9fe8b0"}}>
-            ✓ Player selected — click another player to swap positions. Click same player to cancel.
-          </div>}
+          <div style={{fontSize:10,color:"#4a5d7a",marginBottom:10,background:"#111d30",padding:"8px 10px",borderRadius:5,border:"1px solid #1e3558"}}>
+            Use the coloured buttons to move players: <span style={{color:"#4fc76a"}}>→ LU</span> promotes to lineup &nbsp;|&nbsp; <span style={{color:"#4a9de8"}}>→ SP / → BP</span> promotes to pitching staff &nbsp;|&nbsp; <span style={{color:"#c9a84c"}}>→ BN</span> demotes to bench &nbsp;|&nbsp; <span style={{color:"#e05050"}}>✕ DFA</span> releases
+          </div>
           <div style={{display:"flex",gap:2,marginBottom:10,borderBottom:"1px solid #1e3558"}}>
-            {[["lineup",`Lineup (${lineup.length})`],["rotation",`Rotation (${rotation.length})`],["bullpen",`Bullpen (${bullpen.length})`],["bench",`Bench (${bench.length})`]].map(([id,label])=>(
-              <button key={id} style={{background:"none",border:"none",borderBottom:rosterTab===id?"2px solid #c9a84c":"2px solid transparent",color:rosterTab===id?"#c9a84c":"#4a5d7a",padding:"6px 10px",fontSize:11,cursor:"pointer",fontFamily:"inherit"}} onClick={()=>setRosterTab(id)}>{label}</button>
+            {[["lineup",`Starting Lineup (${lineup.length}/9)`],["rotation",`Rotation (${rotation.length}/5)`],["bullpen",`Bullpen (${bullpen.length})`],["bench",`Bench (${bench.length})`]].map(([id,label])=>(
+              <button key={id} style={{background:"none",border:"none",borderBottom:rosterTab===id?"2px solid #c9a84c":"2px solid transparent",color:rosterTab===id?"#c9a84c":"#4a5d7a",padding:"6px 10px",fontSize:11,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}} onClick={()=>setRosterTab(id)}>{label}</button>
             ))}
           </div>
-          <div style={{fontSize:10,color:"#4a5d7a",marginBottom:8}}>Click any player to select, then click another to swap them. Use ↓ Bench to move a player to the bench.</div>
+
           {rosterTab==="lineup"&&<div style={C.tbox}><table style={{width:"100%",borderCollapse:"collapse"}}>
-            <thead><tr><th style={C.th}>Pos</th><th style={C.th}>Player</th><th style={C.th}>OVR</th><th style={C.th}>Age</th><th style={C.th}>AVG</th><th style={C.th}>HR</th><th style={C.th}>OPS+</th><th style={C.th}>Contract</th><th style={C.th}></th></tr></thead>
-            <tbody>{lineup.map((p,i)=><PlayerRow key={p.id||i} p={p} group="lineup" idx={i} showStats="hitter"/>)}</tbody>
-          </table></div>}
-          {rosterTab==="rotation"&&<div style={C.tbox}><table style={{width:"100%",borderCollapse:"collapse"}}>
-            <thead><tr><th style={C.th}>Pos</th><th style={C.th}>Pitcher</th><th style={C.th}>OVR</th><th style={C.th}>Age</th><th style={C.th}>ERA</th><th style={C.th}>FIP</th><th style={C.th}>K/9</th><th style={C.th}>Contract</th><th style={C.th}></th></tr></thead>
-            <tbody>{rotation.map((p,i)=><PlayerRow key={p.id||i} p={p} group="rotation" idx={i} showStats="pitcher"/>)}</tbody>
-          </table></div>}
-          {rosterTab==="bullpen"&&<div style={C.tbox}><table style={{width:"100%",borderCollapse:"collapse"}}>
-            <thead><tr><th style={C.th}>Role</th><th style={C.th}>Pitcher</th><th style={C.th}>OVR</th><th style={C.th}>Age</th><th style={C.th}>ERA</th><th style={C.th}>Saves</th><th style={C.th}>Fatigue</th><th style={C.th}>Contract</th><th style={C.th}></th></tr></thead>
-            <tbody>{bullpen.map((p,i)=><PlayerRow key={p.id||i} p={p} group="bullpen" idx={i} showStats="bullpen"/>)}</tbody>
-          </table></div>}
-          {rosterTab==="bench"&&<div style={C.tbox}><table style={{width:"100%",borderCollapse:"collapse"}}>
-            <thead><tr><th style={C.th}>Pos</th><th style={C.th}>Player</th><th style={C.th}>OVR</th><th style={C.th}>Age</th><th style={C.th}>Contract</th><th style={C.th}></th></tr></thead>
-            <tbody>{bench.map((p,i)=>(
-              <tr key={p.id||i} style={{background:swapSrc?.group==="bench"&&swapSrc?.idx===i?"#1a2a10":undefined,cursor:"pointer"}} onClick={()=>handlePlayerClick("bench",i)}>
-                <td style={C.td}><PB>{p.p}</PB></td><td style={C.td}>{p.n}</td><td style={C.td}><OVR o={p.o}/></td><td style={C.td}>{p.a}</td>
+            <thead><tr><th style={C.th}>Pos</th><th style={C.th}>Player</th><th style={C.th}>OVR</th><th style={C.th}>Age</th><th style={C.th}>AVG</th><th style={C.th}>HR</th><th style={C.th}>OPS+</th><th style={C.th}>Contract</th><th style={C.th}>Move</th></tr></thead>
+            <tbody>{lineup.map(p=>(
+              <tr key={p.id}>
+                <td style={C.td}><span style={C.pb}>{p.p}</span></td>
+                <td style={{...C.td,fontWeight:500}}>{p.n}</td>
+                <td style={C.td}><OVR o={p.o}/></td>
+                <td style={C.td}>{p.a}</td>
+                <td style={C.td}>{p.avg||"—"}</td>
+                <td style={C.td}>{p.hr||"—"}</td>
+                <td style={C.td}>{p.opsPlus||"—"}</td>
                 <td style={{...C.td,fontSize:10,color:"#4a5d7a"}}>${p.salary||1}M/{p.years||1}yr</td>
-                <td style={C.td}><button style={C.btnRed} onClick={e=>{e.stopPropagation();dfa("bench",i);}}>✕ Release</button></td>
+                <td style={C.td}><button style={{background:"#3a2a10",color:"#c8a060",border:"none",padding:"3px 7px",borderRadius:3,fontSize:9,cursor:"pointer"}} onClick={()=>movePlayer("lineup",p.id,"bench")}>→ BN</button></td>
+              </tr>
+            ))}
+            {lineup.length===0&&<tr><td colSpan={9} style={{...C.td,color:"#4a5d7a",textAlign:"center",padding:16}}>Lineup empty — promote players from Bench tab</td></tr>}
+            </tbody>
+          </table></div>}
+
+          {rosterTab==="rotation"&&<div style={C.tbox}><table style={{width:"100%",borderCollapse:"collapse"}}>
+            <thead><tr><th style={C.th}>Slot</th><th style={C.th}>Pitcher</th><th style={C.th}>OVR</th><th style={C.th}>Age</th><th style={C.th}>ERA</th><th style={C.th}>FIP</th><th style={C.th}>K/9</th><th style={C.th}>Contract</th><th style={C.th}>Move</th></tr></thead>
+            <tbody>{rotation.map((p,i)=>(
+              <tr key={p.id}>
+                <td style={C.td}><span style={C.pb}>SP{i+1}</span></td>
+                <td style={{...C.td,fontWeight:500}}>{p.n}</td>
+                <td style={C.td}><OVR o={p.o}/></td>
+                <td style={C.td}>{p.a}</td>
+                <td style={C.td}>{p.era||"—"}</td>
+                <td style={C.td}>{p.fip||"—"}</td>
+                <td style={C.td}>{p.k9||"—"}</td>
+                <td style={{...C.td,fontSize:10,color:"#4a5d7a"}}>${p.salary||1}M/{p.years||1}yr</td>
+                <td style={C.td}><button style={{background:"#3a2a10",color:"#c8a060",border:"none",padding:"3px 7px",borderRadius:3,fontSize:9,cursor:"pointer"}} onClick={()=>movePlayer("rotation",p.id,"bench")}>→ BN</button></td>
+              </tr>
+            ))}
+            {rotation.length===0&&<tr><td colSpan={9} style={{...C.td,color:"#4a5d7a",textAlign:"center",padding:16}}>Rotation empty — promote SP from Bench tab</td></tr>}
+            </tbody>
+          </table></div>}
+
+          {rosterTab==="bullpen"&&<div style={C.tbox}><table style={{width:"100%",borderCollapse:"collapse"}}>
+            <thead><tr><th style={C.th}>Role</th><th style={C.th}>Pitcher</th><th style={C.th}>OVR</th><th style={C.th}>Age</th><th style={C.th}>ERA</th><th style={C.th}>Saves</th><th style={C.th}>Fatigue</th><th style={C.th}>Contract</th><th style={C.th}>Move</th></tr></thead>
+            <tbody>{bullpen.map(p=>(
+              <tr key={p.id}>
+                <td style={C.td}><span style={C.pb}>{p.p}</span></td>
+                <td style={{...C.td,fontWeight:500}}>{p.n}</td>
+                <td style={C.td}><OVR o={p.o}/></td>
+                <td style={C.td}>{p.age||p.a||"—"}</td>
+                <td style={C.td}>{p.era||"—"}</td>
+                <td style={C.td}>{p.saves||0}</td>
+                <td style={C.td}><div style={{height:4,background:"#1e3558",borderRadius:2,width:50}}><div style={{height:4,width:`${p.fatigue||0}%`,background:(p.fatigue||0)>60?"#c04040":(p.fatigue||0)>30?"#c0a030":"#4fc76a",borderRadius:2}}/></div></td>
+                <td style={{...C.td,fontSize:10,color:"#4a5d7a"}}>${p.salary||1}M/{p.years||1}yr</td>
+                <td style={C.td}><button style={{background:"#3a2a10",color:"#c8a060",border:"none",padding:"3px 7px",borderRadius:3,fontSize:9,cursor:"pointer"}} onClick={()=>movePlayer("bullpen",p.id,"bench")}>→ BN</button></td>
               </tr>
             ))}</tbody>
+          </table></div>}
+
+          {rosterTab==="bench"&&<div style={C.tbox}><table style={{width:"100%",borderCollapse:"collapse"}}>
+            <thead><tr><th style={C.th}>Pos</th><th style={C.th}>Player</th><th style={C.th}>OVR</th><th style={C.th}>Age</th><th style={C.th}>Contract</th><th style={C.th}>Promote to</th></tr></thead>
+            <tbody>{bench.map(p=>{
+              const isSP=p.p==="SP"||p.p==="RP";
+              return(
+              <tr key={p.id}>
+                <td style={C.td}><span style={C.pb}>{p.p}</span></td>
+                <td style={{...C.td,fontWeight:500}}>{p.n}</td>
+                <td style={C.td}><OVR o={p.o}/></td>
+                <td style={C.td}>{p.a||"—"}</td>
+                <td style={{...C.td,fontSize:10,color:"#4a5d7a"}}>${p.salary||1}M/{p.years||1}yr</td>
+                <td style={C.td}>
+                  <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                    {!isSP&&<button style={{background:"#1a5c2a",color:"#9fe8b0",border:"none",padding:"3px 8px",borderRadius:3,fontSize:9,cursor:"pointer",fontWeight:500}} onClick={()=>movePlayer("bench",p.id,"lineup")}>→ Lineup</button>}
+                    {isSP&&<button style={{background:"#1a5c2a",color:"#9fe8b0",border:"none",padding:"3px 8px",borderRadius:3,fontSize:9,cursor:"pointer",fontWeight:500}} onClick={()=>movePlayer("bench",p.id,"rotation")}>→ Rotation</button>}
+                    {isSP&&<button style={{background:"#1a3a5c",color:"#9fb8e8",border:"none",padding:"3px 8px",borderRadius:3,fontSize:9,cursor:"pointer"}} onClick={()=>movePlayer("bench",p.id,"bullpen")}>→ Bullpen</button>}
+                    <button style={{background:"#5c1a1a",color:"#e89f9f",border:"none",padding:"3px 8px",borderRadius:3,fontSize:9,cursor:"pointer"}} onClick={()=>movePlayer("bench",p.id,"release")}>✕ DFA</button>
+                  </div>
+                </td>
+              </tr>
+            );})}
+            {bench.length===0&&<tr><td colSpan={6} style={{...C.td,color:"#4a5d7a",textAlign:"center",padding:16}}>Bench is empty</td></tr>}
+            </tbody>
           </table></div>}
         </div>}
 
