@@ -137,7 +137,8 @@ export default function App(){
   const [trainPts,setTrainPts]=useState(100);
 
   const wR=useRef(0),lR=useRef(0),stR=useRef({});
-
+  const nextSPIdx=useRef(0); // tracks rotation turn across games
+  const trainPtsRef=useRef(100);
   function toast(msg){setNotif(msg);setTimeout(()=>setNotif(""),2800);}
 
   function startFranchise(){
@@ -152,7 +153,7 @@ export default function App(){
     const sched=buildSched(myTeam.a);setSchedule(sched);
     const st=initStandings(myTeam.a);setStandings(st);stR.current=st;
     setWins(0);setLosses(0);wR.current=0;lR.current=0;
-    setWeek(1);setTrainPts(10);setStarted(true);setTab("roster");
+    setWeek(1);setTrainPts(100);trainPtsRef.current=100;nextSPIdx.current=0;setStarted(true);setTab("roster");
     setTradeOffers(makeOffers(R.lu.map(p=>mkPlayer(p,false)),myTeam));
     setFaList(makeFA());
     toast("Welcome to "+season+" — "+myTeam.c+" "+myTeam.n+"!");
@@ -400,19 +401,22 @@ export default function App(){
     const g=schedule[idx];if(!g||g.played){toast("Already played.");return;}
     const opp=TEAMS.find(t=>t.a===g.opp)||TEAMS[0];
     const oppOvr=Math.round((opp.p/265)*30+55);
-    // Initialise per-batter stats for my lineup
+    // Pick today's starter from rotation — advances each game
+    const spIdx=nextSPIdx.current%Math.max(1,rotation.length);
+    const todaySP=rotation[spIdx]||rotation[0];
+    // Initialise per-batter stats for my lineup keyed by lineup position (stable)
     const batterStats={};
-    lineup.forEach(p=>{batterStats[p.id]={name:p.n,pos:p.p,ab:0,h:0,hr:0,rbi:0,bb:0,k:0};});
-    // Inning-by-inning runs: array of {away,home} per inning
+    lineup.forEach((p,i)=>{batterStats[i]={name:p.n,pos:p.p,id:p.id,ab:0,h:0,hr:0,rbi:0,bb:0,k:0};});
     const boxScore=Array.from({length:9},()=>({away:0,home:0}));
     setGame({myHome:g.home,homeA:g.home?myTeam.a:opp.a,awayA:g.home?opp.a:myTeam.a,
       hS:0,aS:0,inn:1,top:true,outs:0,bases:[false,false,false],
-      pitchCount:0,sp:{...rotation[0]},oppOvr,sidx:idx,gameOver:false,batIdx:0,
+      pitchCount:0,sp:todaySP?{...todaySP}:null,oppOvr,sidx:idx,gameOver:false,
+      batIdx:0,  // continuous counter — never reset between innings
       batterStats,boxScore,
-      spStats:{name:rotation[0]?.n||"SP",ip:0,h:0,er:0,bb:0,k:0,pc:0},
-      oppSPStats:{name:opp.a+" SP",ip:0,h:0,er:0,bb:0,k:0,pc:0}
+      spStats:{name:todaySP?.n||"SP",ipOuts:0,h:0,er:0,bb:0,k:0,pc:0},
+      oppSPStats:{name:opp.a+" SP",ipOuts:0,h:0,er:0,bb:0,k:0,pc:0}
     });
-    setPbp([{msg:"Game ready — press Pitch to play.",cls:""}]);
+    setPbp([{msg:`Game ${idx+1}: ${g.home?"vs":"@"} ${opp.a} — ${todaySP?.n||"SP"} takes the mound.`,cls:""}]);
     setTab("game");
   }
 
@@ -426,14 +430,21 @@ export default function App(){
     const wkP=0.085+fp;const kP=0.22-(offOvr-defOvr)*0.002+fp*0.4;
     const r=Math.random();const innStr=(g.top?"▲":"▽")+g.inn;const bTeam=g.top?g.awayA:g.homeA;
     const logs=[];let hS=g.hS,aS=g.aS,bases=[...g.bases],outs=g.outs;
-    let pitchCount=g.pitchCount+rnd(3,7),batIdx=(g.batIdx||0)+1,sp=g.sp;
+    let pitchCount=g.pitchCount+rnd(3,7),sp=g.sp;
+    // Only advance batting order when my team is at bat
+    const batIdx=myBat?g.batIdx+1:g.batIdx;
+    const batName=myBat&&lineup[batSlot]?lineup[batSlot].n:bTeam;
     let newBp=[...bp],runs=0;
 
-    // Track which batter is up (my lineup only)
-    const myBatter=myBat&&lineup.length?lineup[g.batIdx%lineup.length]:null;
-    const batterId=myBatter?myBatter.id:null;
+    // Batting order: batIdx is a continuous game counter, slot = batIdx % lineupLength
+    const lineupLen=Math.max(1,lineup.length);
+    const batSlot=g.batIdx%lineupLen;  // which lineup spot is up
+    const myBatter=myBat?lineup[batSlot]:null;
     const newBatterStats=g.batterStats?{...g.batterStats}:{};
-    if(batterId&&newBatterStats[batterId]) newBatterStats[batterId]={...newBatterStats[batterId],ab:newBatterStats[batterId].ab+1};
+    // Credit AB to the correct lineup slot
+    if(myBat&&newBatterStats[batSlot]){
+      newBatterStats[batSlot]={...newBatterStats[batSlot],ab:newBatterStats[batSlot].ab+1};
+    }
 
     // Box score: copy current
     const newBox=g.boxScore?g.boxScore.map(x=>({...x})):Array.from({length:9},()=>({away:0,home:0}));
@@ -450,8 +461,8 @@ export default function App(){
 
     if(r<hrP){
       let ct=1;bases.forEach(b=>{if(b)ct++;});bases=[false,false,false];runs=ct;
-      logs.push({msg:`${innStr} ${bTeam} — HOME RUN! ${ct} run${ct>1?"s":""} score.`,cls:"sc"});
-      if(batterId&&newBatterStats[batterId]){newBatterStats[batterId]={...newBatterStats[batterId],hr:newBatterStats[batterId].hr+1,rbi:newBatterStats[batterId].rbi+ct,h:newBatterStats[batterId].h+1};}
+      logs.push({msg:`${innStr} ${batName} — HOME RUN! ${ct} run${ct>1?"s":""} score.`,cls:"sc"});
+      if(myBat&&newBatterStats[batSlot]){newBatterStats[batSlot]={...newBatterStats[batSlot],hr:newBatterStats[batSlot].hr+1,rbi:newBatterStats[batSlot].rbi+ct,h:newBatterStats[batSlot].h+1};}
       if(myPitching) newSpStats={...newSpStats,h:newSpStats.h+1,er:newSpStats.er+ct};
       else newOppStats={...newOppStats,h:newOppStats.h+1,er:newOppStats.er+ct};
     }else if(r<hrP+hitP){
@@ -459,29 +470,29 @@ export default function App(){
       if(ht==="Single"){if(bases[2])runs++;bases=[true,bases[0],bases[1]];}
       else if(ht==="Double"){if(bases[2])runs++;if(bases[1])runs++;bases=[false,true,bases[0]];}
       else{bases.forEach(b=>{if(b)runs++;});bases=[false,false,true];}
-      logs.push({msg:`${innStr} ${bTeam} — ${ht}.${runs?` ${runs} run${runs>1?"s":""} score.`:""}`,cls:runs?"sc":"h"});
-      if(batterId&&newBatterStats[batterId]){newBatterStats[batterId]={...newBatterStats[batterId],h:newBatterStats[batterId].h+1,rbi:newBatterStats[batterId].rbi+(runs>0?runs:0)};}
+      logs.push({msg:`${innStr} ${batName} — ${ht}.${runs?` ${runs} run${runs>1?"s":""} score.`:""}`,cls:runs?"sc":"h"});
+      if(myBat&&newBatterStats[batSlot]){newBatterStats[batSlot]={...newBatterStats[batSlot],h:newBatterStats[batSlot].h+1,rbi:newBatterStats[batSlot].rbi+(runs>0?runs:0)};}
       if(myPitching) newSpStats={...newSpStats,h:newSpStats.h+1,er:newSpStats.er+runs};
       else newOppStats={...newOppStats,h:newOppStats.h+1,er:newOppStats.er+runs};
     }else if(r<hrP+hitP+wkP){
       if(bases[0]&&bases[1]&&bases[2]){
-        runs=1;logs.push({msg:`${innStr} ${bTeam} — Walk, RBI.`,cls:"h"});
-        if(batterId&&newBatterStats[batterId]){newBatterStats[batterId]={...newBatterStats[batterId],bb:newBatterStats[batterId].bb+1,rbi:newBatterStats[batterId].rbi+1,ab:newBatterStats[batterId].ab-1};}
+        runs=1;logs.push({msg:`${innStr} ${batName} — Walk, RBI.`,cls:"h"});
+        if(myBat&&newBatterStats[batSlot]){newBatterStats[batSlot]={...newBatterStats[batSlot],bb:newBatterStats[batSlot].bb+1,rbi:newBatterStats[batSlot].rbi+1,ab:newBatterStats[batSlot].ab-1};}
         if(myPitching) newSpStats={...newSpStats,bb:newSpStats.bb+1,er:newSpStats.er+1};
         else newOppStats={...newOppStats,bb:newOppStats.bb+1,er:newOppStats.er+1};
       }else{
-        bases=[true,...bases.slice(0,2)];logs.push({msg:`${innStr} ${bTeam} — Walk.`,cls:""});
-        if(batterId&&newBatterStats[batterId]){newBatterStats[batterId]={...newBatterStats[batterId],bb:newBatterStats[batterId].bb+1,ab:newBatterStats[batterId].ab-1};}
+        bases=[true,...bases.slice(0,2)];logs.push({msg:`${innStr} ${batName} — Walk.`,cls:""});
+        if(myBat&&newBatterStats[batSlot]){newBatterStats[batSlot]={...newBatterStats[batSlot],bb:newBatterStats[batSlot].bb+1,ab:newBatterStats[batSlot].ab-1};}
         if(myPitching) newSpStats={...newSpStats,bb:newSpStats.bb+1};
         else newOppStats={...newOppStats,bb:newOppStats.bb+1};
       }
     }else if(r<hrP+hitP+wkP+kP){
-      outs++;logs.push({msg:`${innStr} ${bTeam} — Strikeout.`,cls:"o"});
-      if(batterId&&newBatterStats[batterId]){newBatterStats[batterId]={...newBatterStats[batterId],k:newBatterStats[batterId].k+1};}
+      outs++;logs.push({msg:`${innStr} ${batName} — Strikeout.`,cls:"o"});
+      if(myBat&&newBatterStats[batSlot]){newBatterStats[batSlot]={...newBatterStats[batSlot],k:newBatterStats[batSlot].k+1};}
       if(myPitching) newSpStats={...newSpStats,k:newSpStats.k+1};
       else newOppStats={...newOppStats,k:newOppStats.k+1};
     }else{
-      outs++;logs.push({msg:`${innStr} ${bTeam} — ${Math.random()<.5?"Groundout":"Flyout"}.`,cls:"o"});
+      outs++;logs.push({msg:`${innStr} ${batName} — ${Math.random()<.5?"Groundout":"Flyout"}.`,cls:"o"});
     }
     if(g.top)aS+=runs;else hS+=runs;
     // Update box score
@@ -526,6 +537,8 @@ export default function App(){
     wR.current=nW;lR.current=nL;
     setPbp([{msg:`FINAL: ${g.homeA} ${g.hS} — ${g.awayA} ${g.aS}. ${myWin?"WIN! 🎉":"Loss."}`,cls:myWin?"sc":"o"},...allLogs].slice(0,80));
     setGame({...g,gameOver:true});setBullpen(finalBp);setWins(nW);setLosses(nL);
+    // Advance rotation to next starter
+    nextSPIdx.current=(nextSPIdx.current+1)%Math.max(1,rotation.length);
     setSchedule(prev=>prev.map((s,i)=>i===g.sidx?{...s,played:true,result:myWin?"W":"L",mS,oS}:s));
     setStandings(prev=>{const next={};Object.entries(prev).forEach(([div,teams])=>{next[div]=teams.map(t=>{if(t.isMe)return{...t,w:nW,l:nL};const w=rnd(0,1);return{...t,w:t.w+w,l:t.l+(1-w)};}).sort((a,b)=>b.w-a.w||(a.l-b.l));});stR.current=next;return next;});
     toast(myWin?"Victory!":"Tough loss.");
@@ -775,8 +788,9 @@ export default function App(){
 
               {/* At bat info */}
               {((game.myHome&&!game.top)||(!game.myHome&&game.top))&&lineup.length>0&&(()=>{
-                const batter=lineup[game.batIdx%lineup.length];
-                const bs=game.batterStats?.[batter?.id];
+                const batSlot=game.batIdx%Math.max(1,lineup.length);
+                const batter=lineup[batSlot];
+                const bs=game.batterStats?.[batSlot];
                 const avg=bs&&bs.ab>0?((bs.h/bs.ab).toFixed(3)):"—";
                 return batter?<div style={{...C.card,padding:"10px 14px",flex:1,minWidth:160}}>
                   <div style={{fontSize:10,color:"#4a5d7a",marginBottom:4}}>AT BAT</div>
@@ -842,10 +856,11 @@ export default function App(){
                   {["Pos","Player","AB","R","H","HR","RBI","BB","K","AVG"].map(h=><th key={h} style={{...C.th,textAlign:h==="Player"?"left":"center"}}>{h}</th>)}
                 </tr></thead>
                 <tbody>{lineup.map((p,i)=>{
-                  const bs=game.batterStats[p.id]||{ab:0,h:0,hr:0,rbi:0,bb:0,k:0};
+                  const bs=game.batterStats?.[i]||{ab:0,h:0,hr:0,rbi:0,bb:0,k:0};
                   const avg=bs.ab>0?(bs.h/bs.ab).toFixed(3):"—";
-                  const isCur=!game.gameOver&&((game.myHome&&!game.top)||(!game.myHome&&game.top))&&game.batIdx%lineup.length===i;
-                  return<tr key={p.id} style={{background:isCur?"#1a2a10":"transparent"}}>
+                  const curSlot=game.batIdx%Math.max(1,lineup.length);
+                  const isCur=!game.gameOver&&((game.myHome&&!game.top)||(!game.myHome&&game.top))&&curSlot===i;
+                  return<tr key={p.id||i} style={{background:isCur?"#1a2a10":"transparent"}}>
                     <td style={{...C.td,textAlign:"center"}}><span style={C.pb}>{p.p}</span></td>
                     <td style={{...C.td,fontWeight:isCur?600:400,color:isCur?"#c9a84c":"#d4c9a8"}}>{isCur?"▶ ":""}{p.n}</td>
                     {[bs.ab,0,bs.h,bs.hr,bs.rbi,bs.bb,bs.k].map((v,j)=><td key={j} style={{...C.td,textAlign:"center",color:j===2&&v>0?"#4fc76a":j===3&&v>0?"#c9a84c":"#d4c9a8"}}>{v}</td>)}
