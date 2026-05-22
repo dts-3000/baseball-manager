@@ -134,7 +134,7 @@ export default function App(){
   const [pbp,setPbp]=useState([]);
   const [game,setGame]=useState(null);
   const [notif,setNotif]=useState("");
-  const [trainPts,setTrainPts]=useState(10);
+  const [trainPts,setTrainPts]=useState(100);
 
   const wR=useRef(0),lR=useRef(0),stR=useRef({});
 
@@ -217,36 +217,185 @@ export default function App(){
   }
 
   // ── TRAINING ─────────────────────────────────────────────────────────────
+  // Use a ref so applyTraining always reads fresh value even inside closures
+  const trainPtsRef = useRef(100);
+
   function applyTraining(id,focus,pts){
-    if(trainPts<pts){toast(`Only ${trainPts} training pts left this week.`);return;}
+    if(trainPtsRef.current<pts){toast(`Only ${trainPtsRef.current} training pts left this week.`);return;}
+    trainPtsRef.current = trainPtsRef.current - pts;
+    setTrainPts(trainPtsRef.current);
     setFarm(prev=>prev.map(p=>{
       if(p.id!==id)return p;
-      const progressGain=pts*5;
+      const progressGain=pts*6;
       const newProgress=Math.min(99,p.progress+progressGain);
-      // OVR boost: guaranteed 1 point for intensive (5pts), 50% chance for 2pts
-      const ovrGain=pts>=5?rnd(1,2):Math.random()<0.5?1:0;
+      const ovrGain=pts>=5?rnd(1,2):Math.random()<0.6?1:0;
       const newOvr=Math.min(p.pot,p.currentOvr+ovrGain);
-      return{...p,progress:newProgress,currentOvr:newOvr,focus,trainPts:(p.trainPts||0)+pts};
-    }));
-    setTrainPts(prev=>prev-pts);
-    toast(`Training applied: ${focus} (${pts}pts). ${trainPts-pts} pts remaining.`);
-  }
-
-  // ── FARM AUTO-ADVANCE ─────────────────────────────────────────────────────
-  function advanceFarm(){
-    setFarm(prev=>prev.map(p=>{
-      const base=p.lvl==="A"?rnd(2,5):p.lvl==="AA"?rnd(3,6):rnd(1,4);
-      let newProg=Math.min(100,p.progress+base);
-      // Chance of OVR bump each week
-      const ovrBump=Math.random()<0.25?1:0;
-      let newOvr=Math.min(p.pot,p.currentOvr+ovrBump);
       let newLvl=p.lvl;
-      if(newProg>=100){newProg=15;if(p.lvl==="A")newLvl="AA";else if(p.lvl==="AA")newLvl="AAA";}
-      return{...p,progress:newProg,currentOvr:newOvr,lvl:newLvl};
+      if(newProgress>=95&&p.lvl==="A") newLvl="AA";
+      else if(newProgress>=95&&p.lvl==="AA") newLvl="AAA";
+      return{...p,progress:newProgress,currentOvr:newOvr,lvl:newLvl,focus,trainPts:(p.trainPts||0)+pts};
     }));
+    toast(`${focus} training applied (${pts}pts) — ${trainPtsRef.current} pts left this week`);
   }
 
-  // ── GAME ENGINE ───────────────────────────────────────────────────────────
+  // ── FARM AUTO-ADVANCE (pure — takes array, returns new array) ─────────────
+  function advanceFarmArr(farmArr){
+    return farmArr.map(p=>{
+      // Guaranteed OVR gain every week — 1 point always, 2 points if progress>70
+      const ovrGain = p.currentOvr < p.pot ? (p.progress>70?rnd(1,2):1) : 0;
+      const newOvr = Math.min(p.pot, p.currentOvr + ovrGain);
+      const base = p.lvl==="A"?rnd(3,7):p.lvl==="AA"?rnd(4,8):rnd(2,5);
+      let newProg = p.progress + base;
+      let newLvl = p.lvl;
+      if(newProg>=100){
+        newProg=10;
+        if(p.lvl==="A") newLvl="AA";
+        else if(p.lvl==="AA") newLvl="AAA";
+      }
+      return{...p,progress:newProg,currentOvr:newOvr,lvl:newLvl};
+    });
+  }
+
+  // ── WEEK / SEASON SIM ─────────────────────────────────────────────────────
+  function simWeek(){
+    const wg=schedule.filter(g=>!g.played&&g.week===week);
+    if(!wg.length){
+      const nw=Math.min(27,week+1);
+      setWeek(nw);
+      if(nw>27) runPlayoffs();
+      else toast(`Advanced to week ${nw}`);
+      return;
+    }
+    const oppMap={};TEAMS.forEach(t=>{oppMap[t.a]=Math.round((t.p/265)*30+55);});
+    const myOvr=Math.round(
+      rotation.reduce((s,p)=>s+p.o,0)/Math.max(1,rotation.length)*0.55+
+      lineup.reduce((s,p)=>s+p.o,0)/Math.max(1,lineup.length)*0.45
+    );
+    let addW=0,addL=0;
+    const newSched=schedule.map(g=>{
+      if(!g.played&&g.week===week){
+        const win=Math.random()<(0.45+(myOvr-(oppMap[g.opp]||70))*0.012);
+        const mS=rnd(0,9),oS=win?Math.max(0,mS-rnd(1,5)):mS+rnd(1,5);
+        if(win)addW++;else addL++;
+        return{...g,played:true,result:win?"W":"L",mS,oS};
+      }
+      return g;
+    });
+    const nW=wR.current+addW, nL=lR.current+addL;
+    wR.current=nW; lR.current=nL;
+
+    // Advance farm synchronously so it's always visible
+    setFarm(prev=>advanceFarmArr(prev));
+
+    // Replenish training pts
+    trainPtsRef.current=100;
+    setTrainPts(100);
+
+    setWins(nW);setLosses(nL);setSchedule(newSched);
+
+    const newSt={};
+    setStandings(prev=>{
+      Object.entries(prev).forEach(([div,teams])=>{
+        newSt[div]=teams.map(t=>{
+          if(t.isMe)return{...t,w:nW,l:nL};
+          const gp=addW+addL;
+          const tw=Array.from({length:gp},()=>rnd(0,1)).reduce((a,b)=>a+b,0);
+          return{...t,w:t.w+tw,l:t.l+(gp-tw)};
+        }).sort((a,b)=>b.w-a.w||(a.l-b.l));
+      });
+      stR.current=newSt;
+      return newSt;
+    });
+
+    const nw=Math.min(27,week+1);setWeek(nw);
+    if(nw>27) runPlayoffs();
+    else toast(`Week ${week} done: ${addW}W-${addL}L — 100 training pts refreshed`);
+  }
+
+  function simSeason(){
+    // Sim all remaining weeks, building standings incrementally without relying on stale state
+    const oppMap={};TEAMS.forEach(t=>{oppMap[t.a]=Math.round((t.p/265)*30+55);});
+    const myOvr=Math.round(
+      rotation.reduce((s,p)=>s+p.o,0)/Math.max(1,rotation.length)*0.55+
+      lineup.reduce((s,p)=>s+p.o,0)/Math.max(1,lineup.length)*0.45
+    );
+    let totalW=wR.current, totalL=lR.current;
+    let currentWeek=week;
+
+    // Process all remaining games at once
+    const newSched=schedule.map(g=>{
+      if(g.played)return g;
+      const win=Math.random()<(0.45+(myOvr-(oppMap[g.opp]||70))*0.012);
+      const mS=rnd(0,9),oS=win?Math.max(0,mS-rnd(1,5)):mS+rnd(1,5);
+      if(win)totalW++;else totalL++;
+      currentWeek=Math.max(currentWeek,g.week);
+      return{...g,played:true,result:win?"W":"L",mS,oS};
+    });
+
+    wR.current=totalW; lR.current=totalL;
+    const weeksRemaining=27-week+1;
+
+    // Advance farm for all remaining weeks
+    setFarm(prev=>{
+      let f=prev;
+      for(let i=0;i<weeksRemaining;i++) f=advanceFarmArr(f);
+      return f;
+    });
+
+    trainPtsRef.current=100; setTrainPts(100);
+    setWins(totalW); setLosses(totalL); setSchedule(newSched); setWeek(28);
+
+    // Build final standings
+    const finalSt={};
+    setStandings(prev=>{
+      const gamesPerTeam=(weeksRemaining*6);
+      Object.entries(prev).forEach(([div,teams])=>{
+        finalSt[div]=teams.map(t=>{
+          if(t.isMe)return{...t,w:totalW,l:totalL};
+          const tw=Math.round(gamesPerTeam*0.5+rnd(-gamesPerTeam*0.1,gamesPerTeam*0.1));
+          return{...t,w:t.w+tw,l:t.l+(gamesPerTeam-tw)};
+        }).sort((a,b)=>b.w-a.w||(a.l-b.l));
+      });
+      stR.current=finalSt;
+      return finalSt;
+    });
+
+    // Run playoffs with a slight delay so state settles
+    setTimeout(()=>runPlayoffs(),50);
+  }
+
+  function runPlayoffs(){
+    // Build from current standings ref
+    const st=stR.current;
+    if(!st||!Object.keys(st).length){toast("No standings data yet.");return;}
+    let qual=[];
+    Object.values(st).forEach(div=>{
+      const sorted=[...div].sort((a,b)=>b.w-a.w||(a.l-b.l));
+      if(sorted[0])qual.push({...sorted[0],seed:"div"});
+      if(sorted[1])qual.push({...sorted[1],seed:"wc"});
+    });
+    qual.sort((a,b)=>b.w-a.w||(a.l-b.l));
+    qual=qual.slice(0,8);
+    if(qual.length<2){toast("Not enough teams for playoffs.");return;}
+    // Pad if fewer than 8
+    while(qual.length<8) qual.push({...qual[0],a:"BYE",n:"BYE",w:0,l:162});
+
+    function sim(a,b){
+      if(a.a==="BYE")return{win:b,sc:"3-0"};
+      if(b.a==="BYE")return{win:a,sc:"3-0"};
+      const ap=a.w/(a.w+a.l+1),bp2=b.w/(b.w+b.l+1);
+      const winA=Math.random()<ap/(ap+bp2);
+      return winA?{win:a,sc:`${rnd(3,4)}-${rnd(0,2)}`}:{win:b,sc:`${rnd(3,4)}-${rnd(0,2)}`};
+    }
+    const ds=[sim(qual[0],qual[7]),sim(qual[3],qual[4]),sim(qual[1],qual[6]),sim(qual[2],qual[5])];
+    const cs=[sim(ds[0].win,ds[1].win),sim(ds[2].win,ds[3].win)];
+    const ws=sim(cs[0].win,cs[1].win);
+    const champ=ws.win;
+    setChampion(champ);
+    setPlayoffs({qual,ds,cs,ws});
+    setTab("playoff");
+    toast(`🏆 ${champ.a} are your ${season} World Series Champions!`);
+  }
   function loadGame(idx){
     const g=schedule[idx];if(!g||g.played){toast("Already played.");return;}
     const opp=TEAMS.find(t=>t.a===g.opp)||TEAMS[0];
@@ -298,46 +447,22 @@ export default function App(){
   function nextGame(){const idx=schedule.findIndex(g=>!g.played);if(idx<0){toast("Season over!");return;}loadGame(idx);}
   function bullpenChange(){const avail=bullpen.filter(b=>!b.used&&b.fatigue<80);if(!avail.length){toast("No fresh arms.");return;}const newBp=bullpen.map(b=>b.id===avail[0].id?{...b,used:true,fatigue:b.fatigue+35}:b);setBullpen(newBp);setGame(g=>({...g,sp:newBp.find(b=>b.id===avail[0].id),pitchCount:0}));setPbp(prev=>[{msg:`⇄ ${avail[0].name||avail[0].n} enters.`,cls:"e"},...prev].slice(0,80));toast(`${avail[0].name||avail[0].n} pitching.`);}
 
-  // ── WEEK / SEASON SIM ─────────────────────────────────────────────────────
-  function simWeek(){
-    const wg=schedule.filter(g=>!g.played&&g.week===week);
-    if(!wg.length){const nw=Math.min(27,week+1);setWeek(nw);if(nw>27)runPlayoffs();else toast(`Advanced to week ${nw}`);return;}
-    const oppMap={};TEAMS.forEach(t=>{oppMap[t.a]=Math.round((t.p/265)*30+55);});
-    const myOvr=Math.round(rotation.reduce((s,p)=>s+p.o,0)/Math.max(1,rotation.length)*0.55+lineup.reduce((s,p)=>s+p.o,0)/Math.max(1,lineup.length)*0.45);
-    let addW=0,addL=0;
-    const newSched=schedule.map(g=>{if(!g.played&&g.week===week){const win=Math.random()<(0.45+(myOvr-(oppMap[g.opp]||70))*0.012);const mS=rnd(0,9),oS=win?Math.max(0,mS-rnd(1,5)):mS+rnd(1,5);if(win)addW++;else addL++;return{...g,played:true,result:win?"W":"L",mS,oS};}return g;});
-    const nW=wR.current+addW,nL=lR.current+addL;
-    wR.current=nW;lR.current=nL;
-    setWins(nW);setLosses(nL);setSchedule(newSched);
-    advanceFarm();
-    // Reset training pts each week
-    setTrainPts(10);
-    setStandings(prev=>{const next={};Object.entries(prev).forEach(([div,teams])=>{next[div]=teams.map(t=>{if(t.isMe)return{...t,w:nW,l:nL};const gp=addW+addL;const tw=Array.from({length:gp},()=>rnd(0,1)).reduce((a,b)=>a+b,0);return{...t,w:t.w+tw,l:t.l+(gp-tw)};}).sort((a,b)=>b.w-a.w||(a.l-b.l));});stR.current=next;return next;});
-    const nw=Math.min(27,week+1);setWeek(nw);
-    if(nw>27)runPlayoffs();else toast(`Week ${week} done: ${addW}W-${addL}L — 10 training pts refreshed`);
-  }
-  function simSeason(){let w=week;while(w<=27){simWeek();w++;}}
-
-  function runPlayoffs(){
-    let qual=[];Object.values(stR.current).forEach(div=>{if(div[0])qual.push(div[0]);if(div[1])qual.push(div[1]);});
-    qual.sort((a,b)=>b.w-a.w);qual=qual.slice(0,8);
-    function sim(a,b){const ap=a.w/(a.w+a.l+1),bp2=b.w/(b.w+b.l+1);return Math.random()<ap/(ap+bp2)?{win:a,sc:`${rnd(3,4)}-${rnd(0,2)}`}:{win:b,sc:`${rnd(3,4)}-${rnd(0,2)}`};}
-    const ds=[sim(qual[0],qual[7]||qual[0]),sim(qual[1],qual[6]||qual[1]),sim(qual[2],qual[5]||qual[2]),sim(qual[3],qual[4]||qual[3])];
-    const cs=[sim(ds[0].win,ds[1].win),sim(ds[2].win,ds[3].win)];
-    const ws=sim(cs[0].win,cs[1].win);
-    setChampion(ws.win);setPlayoffs({qual,ds,cs,ws});setTab("playoff");
-    toast(ws.win.a+" are World Series Champions!");
-  }
-
   function nextSeason(){
     setHistory(prev=>[...prev,{season,w:wins,l:losses,result:champion?`Champs: ${champion.a}`:wins>=90?"Playoff contender":"Below .500"}]);
     setSeason(s=>s+1);setWins(0);setLosses(0);wR.current=0;lR.current=0;setWeek(1);setChampion(null);setPlayoffs(null);
     setLineup(prev=>prev.map(p=>({...p,a:(p.a||25)+1,years:Math.max(0,(p.years||1)-1),o:p.a>32?Math.max(40,p.o-rnd(0,3)):p.a<=27?Math.min(99,p.o+rnd(0,2)):p.o})));
     setRotation(prev=>prev.map(p=>({...p,a:(p.a||26)+1,years:Math.max(0,(p.years||1)-1),o:p.a>33?Math.max(40,p.o-rnd(0,3)):p.a<=27?Math.min(99,p.o+rnd(0,2)):p.o})));
-    setFarm(prev=>prev.map(p=>{const np={...p,age:(p.age||20)+1,progress:Math.min(99,p.progress+rnd(10,25)),currentOvr:Math.min(p.pot,p.currentOvr+rnd(3,8))};if(np.lvl==="A"&&np.progress>75)np.lvl="AA";else if(np.lvl==="AA"&&np.progress>85)np.lvl="AAA";return np;}));
+    setBench(prev=>prev.map(p=>({...p,a:(p.a||25)+1,years:Math.max(0,(p.years||1)-1)})));
+    setFarm(prev=>prev.map(p=>{
+      const np={...p,age:(p.age||20)+1,progress:Math.min(99,p.progress+rnd(15,30)),currentOvr:Math.min(p.pot,p.currentOvr+rnd(4,10))};
+      if(np.lvl==="A"&&np.progress>75)np.lvl="AA";
+      else if(np.lvl==="AA"&&np.progress>85)np.lvl="AAA";
+      return np;
+    }));
     const st=initStandings(myTeam.a);setStandings(st);stR.current=st;
     setSchedule(buildSched(myTeam.a));setDraftBoard(genDraftBoard());
-    setTradeOffers(makeOffers(lineup,myTeam));setFaList(makeFA());setTrainPts(10);
+    setTradeOffers(makeOffers(lineup,myTeam));setFaList(makeFA());
+    trainPtsRef.current=100;setTrainPts(100);
     setTab("roster");toast(`Welcome to the ${season+1} season!`);
   }
 
@@ -593,7 +718,7 @@ export default function App(){
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,flexWrap:"wrap",gap:8}}>
             <div style={{fontSize:11,color:"#4a5d7a"}}>Players auto-develop each week. Use training to accelerate growth.</div>
             <div style={{background:"#111d30",border:"1px solid #7a6030",borderRadius:5,padding:"6px 12px",fontSize:12,color:"#c9a84c",fontWeight:500}}>
-              🎓 Training pts this week: <strong>{trainPts}</strong> / 10
+              🎓 Training pts this week: <strong>{trainPts}</strong> / 100
             </div>
           </div>
           {["AAA","AA","A"].map(lvl=>{
