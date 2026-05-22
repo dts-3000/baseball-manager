@@ -439,41 +439,47 @@ export default function App(){
     const newBox=g.boxScore?g.boxScore.map(x=>({...x})):Array.from({length:9},()=>({away:0,home:0}));
     const boxIdx=Math.min(g.inn-1,8);
 
-    // Pitcher stats
-    const pitchesThisAB=rnd(3,7);
-    let newSpStats=g.spStats?{...g.spStats}:{name:sp?.n||"SP",ip:0,h:0,er:0,bb:0,k:0,pc:0};
-    let newOppStats=g.oppSPStats?{...g.oppSPStats}:{name:"OPP SP",ip:0,h:0,er:0,bb:0,k:0,pc:0};
-    // My pitcher throws when opp bats (g.top = away batting = if myHome, opp bats top)
+    // Pitcher stats — track IP as integer thirds (1 out = 1 third)
+    const pitchesThisAB=pitchCount-g.pitchCount; // actual pitches thrown this AB
+    let newSpStats=g.spStats?{...g.spStats}:{name:sp?.n||"SP",ipOuts:0,h:0,er:0,bb:0,k:0,pc:0};
+    let newOppStats=g.oppSPStats?{...g.oppSPStats}:{name:"OPP SP",ipOuts:0,h:0,er:0,bb:0,k:0,pc:0};
+    // My pitcher throws when opp bats: if myHome, opp bats in top half; if away, opp bats in bottom
     const myPitching=(g.myHome&&g.top)||(!g.myHome&&!g.top);
-    if(myPitching){newSpStats.pc+=pitchesThisAB;}
-    else{newOppStats.pc+=pitchesThisAB;}
+    if(myPitching) newSpStats={...newSpStats,pc:newSpStats.pc+pitchesThisAB};
+    else newOppStats={...newOppStats,pc:newOppStats.pc+pitchesThisAB};
 
     if(r<hrP){
       let ct=1;bases.forEach(b=>{if(b)ct++;});bases=[false,false,false];runs=ct;
       logs.push({msg:`${innStr} ${bTeam} — HOME RUN! ${ct} run${ct>1?"s":""} score.`,cls:"sc"});
-      if(batterId&&newBatterStats[batterId]){newBatterStats[batterId].hr++;newBatterStats[batterId].rbi+=ct;newBatterStats[batterId].h++;}
-      if(myPitching){newSpStats.h++;newSpStats.er+=ct;}else{newOppStats.h++;newOppStats.er+=ct;}
+      if(batterId&&newBatterStats[batterId]){newBatterStats[batterId]={...newBatterStats[batterId],hr:newBatterStats[batterId].hr+1,rbi:newBatterStats[batterId].rbi+ct,h:newBatterStats[batterId].h+1};}
+      if(myPitching) newSpStats={...newSpStats,h:newSpStats.h+1,er:newSpStats.er+ct};
+      else newOppStats={...newOppStats,h:newOppStats.h+1,er:newOppStats.er+ct};
     }else if(r<hrP+hitP){
       const ht=Math.random()<0.58?"Single":Math.random()<0.6?"Double":"Triple";
       if(ht==="Single"){if(bases[2])runs++;bases=[true,bases[0],bases[1]];}
       else if(ht==="Double"){if(bases[2])runs++;if(bases[1])runs++;bases=[false,true,bases[0]];}
       else{bases.forEach(b=>{if(b)runs++;});bases=[false,false,true];}
       logs.push({msg:`${innStr} ${bTeam} — ${ht}.${runs?` ${runs} run${runs>1?"s":""} score.`:""}`,cls:runs?"sc":"h"});
-      if(batterId&&newBatterStats[batterId]){newBatterStats[batterId].h++;if(runs>0)newBatterStats[batterId].rbi+=runs;}
-      if(myPitching){newSpStats.h++;newSpStats.er+=runs;}else{newOppStats.h++;newOppStats.er+=runs;}
+      if(batterId&&newBatterStats[batterId]){newBatterStats[batterId]={...newBatterStats[batterId],h:newBatterStats[batterId].h+1,rbi:newBatterStats[batterId].rbi+(runs>0?runs:0)};}
+      if(myPitching) newSpStats={...newSpStats,h:newSpStats.h+1,er:newSpStats.er+runs};
+      else newOppStats={...newOppStats,h:newOppStats.h+1,er:newOppStats.er+runs};
     }else if(r<hrP+hitP+wkP){
-      if(bases[0]&&bases[1]&&bases[2]){runs=1;logs.push({msg:`${innStr} ${bTeam} — Walk, RBI.`,cls:"h"});
-        if(batterId&&newBatterStats[batterId]){newBatterStats[batterId].bb++;newBatterStats[batterId].rbi++;newBatterStats[batterId].ab--;}
-        if(myPitching){newSpStats.bb++;newSpStats.er++;}else newOppStats.bb++;
+      if(bases[0]&&bases[1]&&bases[2]){
+        runs=1;logs.push({msg:`${innStr} ${bTeam} — Walk, RBI.`,cls:"h"});
+        if(batterId&&newBatterStats[batterId]){newBatterStats[batterId]={...newBatterStats[batterId],bb:newBatterStats[batterId].bb+1,rbi:newBatterStats[batterId].rbi+1,ab:newBatterStats[batterId].ab-1};}
+        if(myPitching) newSpStats={...newSpStats,bb:newSpStats.bb+1,er:newSpStats.er+1};
+        else newOppStats={...newOppStats,bb:newOppStats.bb+1,er:newOppStats.er+1};
       }else{
         bases=[true,...bases.slice(0,2)];logs.push({msg:`${innStr} ${bTeam} — Walk.`,cls:""});
-        if(batterId&&newBatterStats[batterId]){newBatterStats[batterId].bb++;newBatterStats[batterId].ab--;}
-        if(myPitching)newSpStats.bb++;else newOppStats.bb++;
+        if(batterId&&newBatterStats[batterId]){newBatterStats[batterId]={...newBatterStats[batterId],bb:newBatterStats[batterId].bb+1,ab:newBatterStats[batterId].ab-1};}
+        if(myPitching) newSpStats={...newSpStats,bb:newSpStats.bb+1};
+        else newOppStats={...newOppStats,bb:newOppStats.bb+1};
       }
     }else if(r<hrP+hitP+wkP+kP){
       outs++;logs.push({msg:`${innStr} ${bTeam} — Strikeout.`,cls:"o"});
-      if(batterId&&newBatterStats[batterId])newBatterStats[batterId].k++;
-      if(myPitching)newSpStats.k++;else newOppStats.k++;
+      if(batterId&&newBatterStats[batterId]){newBatterStats[batterId]={...newBatterStats[batterId],k:newBatterStats[batterId].k+1};}
+      if(myPitching) newSpStats={...newSpStats,k:newSpStats.k+1};
+      else newOppStats={...newOppStats,k:newOppStats.k+1};
     }else{
       outs++;logs.push({msg:`${innStr} ${bTeam} — ${Math.random()<.5?"Groundout":"Flyout"}.`,cls:"o"});
     }
@@ -493,11 +499,18 @@ export default function App(){
     let inn=g.inn,top=g.top,gameOver=false;
     if(outs>=3){
       outs=0;bases=[false,false,false];
-      // Add IP to pitcher
-      if(myPitching)newSpStats.ip=parseFloat((newSpStats.ip+0.333).toFixed(1));
-      else newOppStats.ip=parseFloat((newOppStats.ip+0.333).toFixed(1));
+      // Record 3 outs worth of IP for the current pitcher
+      if(myPitching) newSpStats={...newSpStats,ipOuts:newSpStats.ipOuts+3};
+      else newOppStats={...newOppStats,ipOuts:newOppStats.ipOuts+3};
       if(top)top=false;else{inn++;top=true;pitchCount=0;}
       if((inn>9&&hS!==aS)||inn>12)gameOver=true;
+    } else {
+      // Partial inning — track outs for IP display
+      const outsAdded=(outs>g.outs?outs-g.outs:0);
+      if(outsAdded>0){
+        if(myPitching) newSpStats={...newSpStats,ipOuts:newSpStats.ipOuts+outsAdded};
+        else newOppStats={...newOppStats,ipOuts:newOppStats.ipOuts+outsAdded};
+      }
     }
     return{
       newGame:{...g,hS,aS,bases,outs,inn,top,pitchCount,batIdx,sp,gameOver,
@@ -792,11 +805,13 @@ export default function App(){
                   const myPitching=(game.myHome&&game.top)||(!game.myHome&&!game.top);
                   const stats=myPitching?game.spStats:game.oppSPStats;
                   if(!stats)return null;
-                  const era=stats.ip>0?((stats.er/(stats.ip/3)*9).toFixed(2)):"—";
+                  const ipo=stats.ipOuts||0;
+                  const ipStr=Math.floor(ipo/3)+(ipo%3>0?"."+ipo%3:"");
+                  const era=ipo>0?((stats.er/(ipo/3))*9).toFixed(2):"—";
                   return<div style={{display:"flex",gap:12,fontSize:11}}>
-                    <div><div style={{color:"#4a5d7a"}}>IP</div><div style={{color:"#d4c9a8",fontWeight:500}}>{stats.ip.toFixed(1)}</div></div>
+                    <div><div style={{color:"#4a5d7a"}}>IP</div><div style={{color:"#d4c9a8",fontWeight:500}}>{ipStr||"0"}</div></div>
                     <div><div style={{color:"#4a5d7a"}}>H</div><div style={{color:"#d4c9a8"}}>{stats.h}</div></div>
-                    <div><div style={{color:"#4a5d7a"}}>ER</div><div style={{color:"#e05050"}}>{stats.er}</div></div>
+                    <div><div style={{color:"#4a5d7a"}}>ER</div><div style={{color:stats.er>3?"#e05050":"#d4c9a8"}}>{stats.er}</div></div>
                     <div><div style={{color:"#4a5d7a"}}>BB</div><div style={{color:"#d4c9a8"}}>{stats.bb}</div></div>
                     <div><div style={{color:"#4a5d7a"}}>K</div><div style={{color:"#4fc76a"}}>{stats.k}</div></div>
                     <div><div style={{color:"#4a5d7a"}}>ERA</div><div style={{color:"#c9a84c"}}>{era}</div></div>
@@ -849,11 +864,13 @@ export default function App(){
                   {...game.spStats,team:game.myHome?game.homeA:game.awayA,isMine:true},
                   {...game.oppSPStats,team:game.myHome?game.awayA:game.homeA,isMine:false}
                 ].map((s,i)=>{
-                  const era=s.ip>0?((s.er/(s.ip/3)*9).toFixed(2)):"—";
+                  const ipo=s.ipOuts||0;
+                  const ipStr=Math.floor(ipo/3)+(ipo%3>0?"."+ipo%3:"");
+                  const era=ipo>0?((s.er/(ipo/3))*9).toFixed(2):"—";
                   return<tr key={i} style={{background:s.isMine?"#111d30":"transparent"}}>
                     <td style={{...C.td,fontWeight:500}}>{s.name}</td>
                     <td style={{...C.td,textAlign:"center"}}><span style={{fontSize:10,color:"#8a9bbf"}}>{s.team}</span></td>
-                    <td style={{...C.td,textAlign:"center"}}>{s.ip.toFixed(1)}</td>
+                    <td style={{...C.td,textAlign:"center"}}>{ipStr||"0"}</td>
                     <td style={{...C.td,textAlign:"center"}}>{s.h}</td>
                     <td style={{...C.td,textAlign:"center",color:s.er>3?"#e05050":"#d4c9a8"}}>{s.er}</td>
                     <td style={{...C.td,textAlign:"center"}}>{s.bb}</td>
