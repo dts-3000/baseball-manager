@@ -400,7 +400,18 @@ export default function App(){
     const g=schedule[idx];if(!g||g.played){toast("Already played.");return;}
     const opp=TEAMS.find(t=>t.a===g.opp)||TEAMS[0];
     const oppOvr=Math.round((opp.p/265)*30+55);
-    setGame({myHome:g.home,homeA:g.home?myTeam.a:opp.a,awayA:g.home?opp.a:myTeam.a,hS:0,aS:0,inn:1,top:true,outs:0,bases:[false,false,false],pitchCount:0,sp:{...rotation[0]},oppOvr,sidx:idx,gameOver:false,batIdx:0});
+    // Initialise per-batter stats for my lineup
+    const batterStats={};
+    lineup.forEach(p=>{batterStats[p.id]={name:p.n,pos:p.p,ab:0,h:0,hr:0,rbi:0,bb:0,k:0};});
+    // Inning-by-inning runs: array of {away,home} per inning
+    const boxScore=Array.from({length:9},()=>({away:0,home:0}));
+    setGame({myHome:g.home,homeA:g.home?myTeam.a:opp.a,awayA:g.home?opp.a:myTeam.a,
+      hS:0,aS:0,inn:1,top:true,outs:0,bases:[false,false,false],
+      pitchCount:0,sp:{...rotation[0]},oppOvr,sidx:idx,gameOver:false,batIdx:0,
+      batterStats,boxScore,
+      spStats:{name:rotation[0]?.n||"SP",ip:0,h:0,er:0,bb:0,k:0,pc:0},
+      oppSPStats:{name:opp.a+" SP",ip:0,h:0,er:0,bb:0,k:0,pc:0}
+    });
     setPbp([{msg:"Game ready — press Pitch to play.",cls:""}]);
     setTab("game");
   }
@@ -417,16 +428,82 @@ export default function App(){
     const logs=[];let hS=g.hS,aS=g.aS,bases=[...g.bases],outs=g.outs;
     let pitchCount=g.pitchCount+rnd(3,7),batIdx=(g.batIdx||0)+1,sp=g.sp;
     let newBp=[...bp],runs=0;
-    if(r<hrP){let ct=1;bases.forEach(b=>{if(b)ct++;});bases=[false,false,false];runs=ct;logs.push({msg:`${innStr} ${bTeam} — HOME RUN! ${ct} run${ct>1?"s":""} score.`,cls:"sc"});}
-    else if(r<hrP+hitP){const ht=Math.random()<0.58?"Single":Math.random()<0.6?"Double":"Triple";if(ht==="Single"){if(bases[2])runs++;bases=[true,bases[0],bases[1]];}else if(ht==="Double"){if(bases[2])runs++;if(bases[1])runs++;bases=[false,true,bases[0]];}else{bases.forEach(b=>{if(b)runs++;});bases=[false,false,true];}logs.push({msg:`${innStr} ${bTeam} — ${ht}.${runs?` ${runs} run${runs>1?"s":""} score.`:""}`,cls:runs?"sc":"h"});}
-    else if(r<hrP+hitP+wkP){if(bases[0]&&bases[1]&&bases[2]){runs=1;logs.push({msg:`${innStr} ${bTeam} — Walk, RBI.`,cls:"h"});}else{bases=[true,...bases.slice(0,2)];logs.push({msg:`${innStr} ${bTeam} — Walk.`,cls:""});}}
-    else if(r<hrP+hitP+wkP+kP){outs++;logs.push({msg:`${innStr} ${bTeam} — Strikeout.`,cls:"o"});}
-    else{outs++;logs.push({msg:`${innStr} ${bTeam} — ${Math.random()<.5?"Groundout":"Flyout"}.`,cls:"o"});}
+
+    // Track which batter is up (my lineup only)
+    const myBatter=myBat&&lineup.length?lineup[g.batIdx%lineup.length]:null;
+    const batterId=myBatter?myBatter.id:null;
+    const newBatterStats=g.batterStats?{...g.batterStats}:{};
+    if(batterId&&newBatterStats[batterId]) newBatterStats[batterId]={...newBatterStats[batterId],ab:newBatterStats[batterId].ab+1};
+
+    // Box score: copy current
+    const newBox=g.boxScore?g.boxScore.map(x=>({...x})):Array.from({length:9},()=>({away:0,home:0}));
+    const boxIdx=Math.min(g.inn-1,8);
+
+    // Pitcher stats
+    const pitchesThisAB=rnd(3,7);
+    let newSpStats=g.spStats?{...g.spStats}:{name:sp?.n||"SP",ip:0,h:0,er:0,bb:0,k:0,pc:0};
+    let newOppStats=g.oppSPStats?{...g.oppSPStats}:{name:"OPP SP",ip:0,h:0,er:0,bb:0,k:0,pc:0};
+    // My pitcher throws when opp bats (g.top = away batting = if myHome, opp bats top)
+    const myPitching=(g.myHome&&g.top)||(!g.myHome&&!g.top);
+    if(myPitching){newSpStats.pc+=pitchesThisAB;}
+    else{newOppStats.pc+=pitchesThisAB;}
+
+    if(r<hrP){
+      let ct=1;bases.forEach(b=>{if(b)ct++;});bases=[false,false,false];runs=ct;
+      logs.push({msg:`${innStr} ${bTeam} — HOME RUN! ${ct} run${ct>1?"s":""} score.`,cls:"sc"});
+      if(batterId&&newBatterStats[batterId]){newBatterStats[batterId].hr++;newBatterStats[batterId].rbi+=ct;newBatterStats[batterId].h++;}
+      if(myPitching){newSpStats.h++;newSpStats.er+=ct;}else{newOppStats.h++;newOppStats.er+=ct;}
+    }else if(r<hrP+hitP){
+      const ht=Math.random()<0.58?"Single":Math.random()<0.6?"Double":"Triple";
+      if(ht==="Single"){if(bases[2])runs++;bases=[true,bases[0],bases[1]];}
+      else if(ht==="Double"){if(bases[2])runs++;if(bases[1])runs++;bases=[false,true,bases[0]];}
+      else{bases.forEach(b=>{if(b)runs++;});bases=[false,false,true];}
+      logs.push({msg:`${innStr} ${bTeam} — ${ht}.${runs?` ${runs} run${runs>1?"s":""} score.`:""}`,cls:runs?"sc":"h"});
+      if(batterId&&newBatterStats[batterId]){newBatterStats[batterId].h++;if(runs>0)newBatterStats[batterId].rbi+=runs;}
+      if(myPitching){newSpStats.h++;newSpStats.er+=runs;}else{newOppStats.h++;newOppStats.er+=runs;}
+    }else if(r<hrP+hitP+wkP){
+      if(bases[0]&&bases[1]&&bases[2]){runs=1;logs.push({msg:`${innStr} ${bTeam} — Walk, RBI.`,cls:"h"});
+        if(batterId&&newBatterStats[batterId]){newBatterStats[batterId].bb++;newBatterStats[batterId].rbi++;newBatterStats[batterId].ab--;}
+        if(myPitching){newSpStats.bb++;newSpStats.er++;}else newOppStats.bb++;
+      }else{
+        bases=[true,...bases.slice(0,2)];logs.push({msg:`${innStr} ${bTeam} — Walk.`,cls:""});
+        if(batterId&&newBatterStats[batterId]){newBatterStats[batterId].bb++;newBatterStats[batterId].ab--;}
+        if(myPitching)newSpStats.bb++;else newOppStats.bb++;
+      }
+    }else if(r<hrP+hitP+wkP+kP){
+      outs++;logs.push({msg:`${innStr} ${bTeam} — Strikeout.`,cls:"o"});
+      if(batterId&&newBatterStats[batterId])newBatterStats[batterId].k++;
+      if(myPitching)newSpStats.k++;else newOppStats.k++;
+    }else{
+      outs++;logs.push({msg:`${innStr} ${bTeam} — ${Math.random()<.5?"Groundout":"Flyout"}.`,cls:"o"});
+    }
     if(g.top)aS+=runs;else hS+=runs;
-    if(pitchCount>85&&Math.random()>0.65&&!myBat){const avail=newBp.filter(b=>!b.used&&b.fatigue<70);if(avail.length){const ri=newBp.findIndex(b=>b.id===avail[0].id);newBp[ri]={...newBp[ri],used:true,fatigue:newBp[ri].fatigue+30};sp=newBp[ri];pitchCount=0;logs.push({msg:`⇄ ${sp.name||sp.n} enters.`,cls:"e"});}}
+    // Update box score
+    if(g.top)newBox[boxIdx].away+=runs;else newBox[boxIdx].home+=runs;
+
+    if(pitchCount>85&&Math.random()>0.65&&!myBat){
+      const avail=newBp.filter(b=>!b.used&&b.fatigue<70);
+      if(avail.length){
+        const ri=newBp.findIndex(b=>b.id===avail[0].id);
+        newBp[ri]={...newBp[ri],used:true,fatigue:newBp[ri].fatigue+30};
+        sp=newBp[ri];pitchCount=0;
+        logs.push({msg:`⇄ ${sp.name||sp.n} enters.`,cls:"e"});
+      }
+    }
     let inn=g.inn,top=g.top,gameOver=false;
-    if(outs>=3){outs=0;bases=[false,false,false];if(top)top=false;else{inn++;top=true;pitchCount=0;}if((inn>9&&hS!==aS)||inn>12)gameOver=true;}
-    return{newGame:{...g,hS,aS,bases,outs,inn,top,pitchCount,batIdx,sp,gameOver},logs,newBp,gameOver};
+    if(outs>=3){
+      outs=0;bases=[false,false,false];
+      // Add IP to pitcher
+      if(myPitching)newSpStats.ip=parseFloat((newSpStats.ip+0.333).toFixed(1));
+      else newOppStats.ip=parseFloat((newOppStats.ip+0.333).toFixed(1));
+      if(top)top=false;else{inn++;top=true;pitchCount=0;}
+      if((inn>9&&hS!==aS)||inn>12)gameOver=true;
+    }
+    return{
+      newGame:{...g,hS,aS,bases,outs,inn,top,pitchCount,batIdx,sp,gameOver,
+        batterStats:newBatterStats,boxScore:newBox,spStats:newSpStats,oppSPStats:newOppStats},
+      logs,newBp,gameOver
+    };
   }
 
   function commitGameEnd(g,allLogs,finalBp){
@@ -627,34 +704,166 @@ export default function App(){
         {/* ── GAME ── */}
         {tab==="game"&&<div>
           {game?<>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:20,padding:"14px 0 8px"}}>
-              <div style={{textAlign:"center"}}><div style={{fontSize:22,fontWeight:600,color:"#d4c9a8"}}>{game.awayA}</div><div style={{fontSize:11,color:"#4a5d7a"}}>Away</div></div>
-              <div style={{textAlign:"center"}}><div style={{fontSize:30,fontWeight:600,color:"#c9a84c",letterSpacing:"0.08em"}}>{game.aS} – {game.hS}</div><div style={{fontSize:11,color:"#4a5d7a",marginTop:3}}>{game.gameOver?"FINAL":`${game.top?"▲":"▽"}${game.inn}${ord(game.inn)} • ${game.outs} out${game.outs!==1?"s":""}`}</div></div>
-              <div style={{textAlign:"center"}}><div style={{fontSize:22,fontWeight:600,color:"#d4c9a8"}}>{game.homeA}</div><div style={{fontSize:11,color:"#4a5d7a"}}>Home</div></div>
-            </div>
-            <div style={{display:"flex",justifyContent:"center",gap:24,marginBottom:8}}>
-              <div>
-                <div style={{display:"flex",gap:5,marginBottom:5,justifyContent:"center"}}>{[0,1,2].map(i=><div key={i} style={{width:9,height:9,borderRadius:"50%",border:"1.5px solid #1e3558",background:i<game.outs?"#c04040":"transparent"}}/>)}</div>
-                <div style={{position:"relative",width:66,height:66}}>
-                  {[[28,2,1],[2,28,2],[52,28,0]].map(([l,t,bi])=>(<div key={bi} style={{position:"absolute",width:11,height:11,border:"1.5px solid #1e3558",transform:"rotate(45deg)",background:game.bases[bi]?"#c9a84c":"#111d30",left:l,top:t}}/>))}
-                  <div style={{position:"absolute",width:11,height:11,border:"1.5px solid #1e3558",transform:"rotate(45deg)",background:"#111d30",left:28,bottom:2}}/>
+            {/* Scoreboard */}
+            <div style={{background:"#060e1a",border:"1px solid #1e3558",borderRadius:6,padding:"12px 16px",marginBottom:10}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:24,marginBottom:8}}>
+                <div style={{textAlign:"center",minWidth:80}}>
+                  <div style={{fontSize:20,fontWeight:700,color:"#d4c9a8"}}>{game.awayA}</div>
+                  <div style={{fontSize:10,color:"#4a5d7a"}}>Away</div>
+                </div>
+                <div style={{textAlign:"center"}}>
+                  <div style={{fontSize:34,fontWeight:700,color:"#c9a84c",letterSpacing:"0.1em",lineHeight:1}}>{game.aS} – {game.hS}</div>
+                  <div style={{fontSize:11,color:"#4a5d7a",marginTop:4}}>{game.gameOver?"⚫ FINAL":`${game.top?"▲":"▽"} ${game.inn}${ord(game.inn)} • ${game.outs} out${game.outs!==1?"s":""}`}</div>
+                </div>
+                <div style={{textAlign:"center",minWidth:80}}>
+                  <div style={{fontSize:20,fontWeight:700,color:"#d4c9a8"}}>{game.homeA}</div>
+                  <div style={{fontSize:10,color:"#4a5d7a"}}>Home</div>
                 </div>
               </div>
-              <div style={{fontSize:11,color:"#4a5d7a",paddingTop:4}}>
-                {game.sp&&<><div>P: {game.sp.n||game.sp.name}</div><div style={{marginTop:6}}>Fatigue {Math.min(100,Math.round(game.pitchCount*1.1))}%<div style={{width:70,height:3,background:"#1e3558",borderRadius:2,marginTop:2}}><div style={{height:3,width:`${Math.min(100,Math.round(game.pitchCount*1.1))}%`,background:game.pitchCount>70?"#c04040":game.pitchCount>40?"#c0a030":"#4fc76a",borderRadius:2}}/></div></div></>}
-                {((game.myHome&&!game.top)||(!game.myHome&&game.top))&&lineup.length&&<div style={{marginTop:4}}>AB: {lineup[game.batIdx%lineup.length]?.n}</div>}
-              </div>
+              {/* Inning line score */}
+              {game.boxScore&&<div style={{overflowX:"auto"}}>
+                <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,textAlign:"center"}}>
+                  <thead><tr>
+                    <th style={{...C.th,textAlign:"left",width:50}}>Team</th>
+                    {game.boxScore.map((_,i)=><th key={i} style={{...C.th,textAlign:"center",width:28}}>{i+1}</th>)}
+                    <th style={{...C.th,textAlign:"center",width:32,color:"#c9a84c"}}>R</th>
+                    <th style={{...C.th,textAlign:"center",width:28}}>H</th>
+                  </tr></thead>
+                  <tbody>
+                    <tr style={{background:"#111d30"}}>
+                      <td style={{...C.td,fontWeight:600,fontSize:11}}>{game.awayA}</td>
+                      {game.boxScore.map((b,i)=><td key={i} style={{...C.td,textAlign:"center",fontSize:11,color:b.away>0?"#c9a84c":"#4a5d7a"}}>{i<game.inn||(i===game.inn-1&&!game.top)?b.away:"·"}</td>)}
+                      <td style={{...C.td,textAlign:"center",fontWeight:700,color:"#c9a84c"}}>{game.aS}</td>
+                      <td style={{...C.td,textAlign:"center",color:"#8a9bbf"}}>{game.oppSPStats?game.oppSPStats.h:0}</td>
+                    </tr>
+                    <tr>
+                      <td style={{...C.td,fontWeight:600,fontSize:11}}>{game.homeA}</td>
+                      {game.boxScore.map((b,i)=><td key={i} style={{...C.td,textAlign:"center",fontSize:11,color:b.home>0?"#c9a84c":"#4a5d7a"}}>{i<game.inn-1||(i===game.inn-1&&game.gameOver)?b.home:"·"}</td>)}
+                      <td style={{...C.td,textAlign:"center",fontWeight:700,color:"#c9a84c"}}>{game.hS}</td>
+                      <td style={{...C.td,textAlign:"center",color:"#8a9bbf"}}>{game.spStats?game.spStats.h:0}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>}
             </div>
-            <div style={{background:"#111d30",borderRadius:5,padding:8,height:130,overflowY:"auto",fontSize:12,marginBottom:8}}>
+
+            {/* Diamond + Current batter/pitcher */}
+            <div style={{display:"flex",gap:12,marginBottom:10,flexWrap:"wrap"}}>
+              <div style={{...C.card,padding:"10px 14px",display:"flex",gap:18,alignItems:"center",flex:"0 0 auto"}}>
+                <div>
+                  <div style={{display:"flex",gap:5,marginBottom:5,justifyContent:"center"}}>{[0,1,2].map(i=><div key={i} style={{width:9,height:9,borderRadius:"50%",border:"1.5px solid #1e3558",background:i<game.outs?"#c04040":"transparent"}}/>)}</div>
+                  <div style={{position:"relative",width:66,height:66}}>
+                    {[[28,2,1],[2,28,2],[52,28,0]].map(([l,t,bi])=>(<div key={bi} style={{position:"absolute",width:11,height:11,border:"1.5px solid #1e3558",transform:"rotate(45deg)",background:game.bases[bi]?"#c9a84c":"#111d30",left:l,top:t}}/>))}
+                    <div style={{position:"absolute",width:11,height:11,border:"1.5px solid #1e3558",transform:"rotate(45deg)",background:"#111d30",left:28,bottom:2}}/>
+                  </div>
+                  <div style={{fontSize:10,color:"#4a5d7a",textAlign:"center",marginTop:4}}>{game.outs} out{game.outs!==1?"s":""}</div>
+                </div>
+              </div>
+
+              {/* At bat info */}
+              {((game.myHome&&!game.top)||(!game.myHome&&game.top))&&lineup.length>0&&(()=>{
+                const batter=lineup[game.batIdx%lineup.length];
+                const bs=game.batterStats?.[batter?.id];
+                const avg=bs&&bs.ab>0?((bs.h/bs.ab).toFixed(3)):"—";
+                return batter?<div style={{...C.card,padding:"10px 14px",flex:1,minWidth:160}}>
+                  <div style={{fontSize:10,color:"#4a5d7a",marginBottom:4}}>AT BAT</div>
+                  <div style={{fontSize:14,fontWeight:600,color:"#d4c9a8"}}>{batter.n}</div>
+                  <div style={{fontSize:11,color:"#8a9bbf",marginBottom:6}}><span style={C.pb}>{batter.p}</span> • OVR <OVR o={batter.o}/></div>
+                  {bs&&<div style={{display:"flex",gap:12,fontSize:11}}>
+                    <div><div style={{color:"#4a5d7a"}}>AVG</div><div style={{color:"#d4c9a8",fontWeight:500}}>{avg}</div></div>
+                    <div><div style={{color:"#4a5d7a"}}>AB</div><div style={{color:"#d4c9a8"}}>{bs.ab}</div></div>
+                    <div><div style={{color:"#4a5d7a"}}>H</div><div style={{color:"#4fc76a"}}>{bs.h}</div></div>
+                    <div><div style={{color:"#4a5d7a"}}>HR</div><div style={{color:"#c9a84c"}}>{bs.hr}</div></div>
+                    <div><div style={{color:"#4a5d7a"}}>RBI</div><div style={{color:"#d4c9a8"}}>{bs.rbi}</div></div>
+                    <div><div style={{color:"#4a5d7a"}}>K</div><div style={{color:"#e05050"}}>{bs.k}</div></div>
+                  </div>}
+                </div>:null;
+              })()}
+
+              {/* Pitching info */}
+              {game.sp&&<div style={{...C.card,padding:"10px 14px",flex:1,minWidth:160}}>
+                <div style={{fontSize:10,color:"#4a5d7a",marginBottom:4}}>PITCHING</div>
+                <div style={{fontSize:14,fontWeight:600,color:"#d4c9a8"}}>{game.sp.n||game.sp.name}</div>
+                <div style={{fontSize:11,color:"#8a9bbf",marginBottom:6}}>Pitches: {game.pitchCount} &nbsp;|&nbsp; Fatigue: {Math.min(100,Math.round(game.pitchCount*1.1))}%</div>
+                <div style={{height:3,background:"#1e3558",borderRadius:2,marginBottom:8,width:"100%"}}>
+                  <div style={{height:3,width:`${Math.min(100,Math.round(game.pitchCount*1.1))}%`,background:game.pitchCount>70?"#c04040":game.pitchCount>40?"#c0a030":"#4fc76a",borderRadius:2}}/>
+                </div>
+                {(()=>{
+                  const myPitching=(game.myHome&&game.top)||(!game.myHome&&!game.top);
+                  const stats=myPitching?game.spStats:game.oppSPStats;
+                  if(!stats)return null;
+                  const era=stats.ip>0?((stats.er/(stats.ip/3)*9).toFixed(2)):"—";
+                  return<div style={{display:"flex",gap:12,fontSize:11}}>
+                    <div><div style={{color:"#4a5d7a"}}>IP</div><div style={{color:"#d4c9a8",fontWeight:500}}>{stats.ip.toFixed(1)}</div></div>
+                    <div><div style={{color:"#4a5d7a"}}>H</div><div style={{color:"#d4c9a8"}}>{stats.h}</div></div>
+                    <div><div style={{color:"#4a5d7a"}}>ER</div><div style={{color:"#e05050"}}>{stats.er}</div></div>
+                    <div><div style={{color:"#4a5d7a"}}>BB</div><div style={{color:"#d4c9a8"}}>{stats.bb}</div></div>
+                    <div><div style={{color:"#4a5d7a"}}>K</div><div style={{color:"#4fc76a"}}>{stats.k}</div></div>
+                    <div><div style={{color:"#4a5d7a"}}>ERA</div><div style={{color:"#c9a84c"}}>{era}</div></div>
+                  </div>;
+                })()}
+              </div>}
+            </div>
+
+            {/* Play by play */}
+            <div style={{background:"#111d30",borderRadius:5,padding:8,height:110,overflowY:"auto",fontSize:12,marginBottom:8,border:"1px solid #1e3558"}}>
               {pbp.map((l,i)=><div key={i} style={{padding:"2px 0",borderBottom:"1px solid #1e3558",color:l.cls==="sc"?"#c9a84c":l.cls==="h"?"#4fc76a":l.cls==="o"?"#4a5d7a":l.cls==="e"?"#e8c040":"#d4c9a8"}}>{l.msg}</div>)}
             </div>
-            <div style={{display:"flex",gap:6,justifyContent:"center",flexWrap:"wrap"}}>
+
+            {/* Controls */}
+            <div style={{display:"flex",gap:6,justifyContent:"center",flexWrap:"wrap",marginBottom:12}}>
               <button style={C.btn(false)} onClick={simOnePitch}>⊳ Pitch</button>
               <button style={C.btn(false)} onClick={simHalf}>⊳⊳ Half inning</button>
               <button style={C.btn(true)} onClick={simFull}>⊳⊳⊳ Full game</button>
               <button style={C.btn(false)} onClick={bullpenChange}>🔄 Pitching change</button>
               <button style={C.btn(false)} onClick={nextGame}>Next game</button>
             </div>
+
+            {/* Batting box score — my lineup */}
+            {game.batterStats&&Object.keys(game.batterStats).length>0&&<div>
+              <div style={C.tt}>Batting — {game.myHome?game.homeA:game.awayA}</div>
+              <div style={C.tbox}><table style={{width:"100%",borderCollapse:"collapse"}}>
+                <thead><tr>
+                  {["Pos","Player","AB","R","H","HR","RBI","BB","K","AVG"].map(h=><th key={h} style={{...C.th,textAlign:h==="Player"?"left":"center"}}>{h}</th>)}
+                </tr></thead>
+                <tbody>{lineup.map((p,i)=>{
+                  const bs=game.batterStats[p.id]||{ab:0,h:0,hr:0,rbi:0,bb:0,k:0};
+                  const avg=bs.ab>0?(bs.h/bs.ab).toFixed(3):"—";
+                  const isCur=!game.gameOver&&((game.myHome&&!game.top)||(!game.myHome&&game.top))&&game.batIdx%lineup.length===i;
+                  return<tr key={p.id} style={{background:isCur?"#1a2a10":"transparent"}}>
+                    <td style={{...C.td,textAlign:"center"}}><span style={C.pb}>{p.p}</span></td>
+                    <td style={{...C.td,fontWeight:isCur?600:400,color:isCur?"#c9a84c":"#d4c9a8"}}>{isCur?"▶ ":""}{p.n}</td>
+                    {[bs.ab,0,bs.h,bs.hr,bs.rbi,bs.bb,bs.k].map((v,j)=><td key={j} style={{...C.td,textAlign:"center",color:j===2&&v>0?"#4fc76a":j===3&&v>0?"#c9a84c":"#d4c9a8"}}>{v}</td>)}
+                    <td style={{...C.td,textAlign:"center",color:bs.ab>0&&bs.h/bs.ab>=0.3?"#4fc76a":"#d4c9a8"}}>{avg}</td>
+                  </tr>;
+                })}</tbody>
+              </table></div>
+            </div>}
+
+            {/* Pitching summary */}
+            {game.spStats&&<div>
+              <div style={C.tt}>Pitching summary</div>
+              <div style={C.tbox}><table style={{width:"100%",borderCollapse:"collapse"}}>
+                <thead><tr>{["Pitcher","Team","IP","H","ER","BB","K","Pitches","ERA"].map(h=><th key={h} style={{...C.th,textAlign:h==="Pitcher"?"left":"center"}}>{h}</th>)}</tr></thead>
+                <tbody>{[
+                  {...game.spStats,team:game.myHome?game.homeA:game.awayA,isMine:true},
+                  {...game.oppSPStats,team:game.myHome?game.awayA:game.homeA,isMine:false}
+                ].map((s,i)=>{
+                  const era=s.ip>0?((s.er/(s.ip/3)*9).toFixed(2)):"—";
+                  return<tr key={i} style={{background:s.isMine?"#111d30":"transparent"}}>
+                    <td style={{...C.td,fontWeight:500}}>{s.name}</td>
+                    <td style={{...C.td,textAlign:"center"}}><span style={{fontSize:10,color:"#8a9bbf"}}>{s.team}</span></td>
+                    <td style={{...C.td,textAlign:"center"}}>{s.ip.toFixed(1)}</td>
+                    <td style={{...C.td,textAlign:"center"}}>{s.h}</td>
+                    <td style={{...C.td,textAlign:"center",color:s.er>3?"#e05050":"#d4c9a8"}}>{s.er}</td>
+                    <td style={{...C.td,textAlign:"center"}}>{s.bb}</td>
+                    <td style={{...C.td,textAlign:"center",color:"#4fc76a"}}>{s.k}</td>
+                    <td style={{...C.td,textAlign:"center",color:"#8a9bbf"}}>{s.pc}</td>
+                    <td style={{...C.td,textAlign:"center",color:"#c9a84c"}}>{era}</td>
+                  </tr>;
+                })}</tbody>
+              </table></div>
+            </div>}
           </>:<div style={{textAlign:"center",padding:"40px 20px",color:"#4a5d7a"}}><div style={{marginBottom:12}}>Select a game from Schedule, or:</div><button style={C.btn(true)} onClick={nextGame}>Load next game →</button></div>}
         </div>}
 
