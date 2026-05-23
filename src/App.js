@@ -430,15 +430,14 @@ export default function App(){
     const r=Math.random();const innStr=(g.top?"▲":"▽")+g.inn;const bTeam=g.top?g.awayA:g.homeA;
     const logs=[];let hS=g.hS,aS=g.aS,bases=[...g.bases],outs=g.outs;
     let pitchCount=g.pitchCount+rnd(3,7),sp=g.sp;
+    // Batting order: batIdx is a continuous game counter, slot = batIdx % lineupLength
+    const lineupLen=Math.max(1,lineup.length);
+    const batSlot=g.batIdx%lineupLen;  // which lineup spot is up
     // Only advance batting order when my team is at bat
     const batIdx=myBat?g.batIdx+1:g.batIdx;
     const batName=myBat&&lineup[batSlot]?lineup[batSlot].n:bTeam;
     let newBp=[...bp],runs=0;
 
-    // Batting order: batIdx is a continuous game counter, slot = batIdx % lineupLength
-    const lineupLen=Math.max(1,lineup.length);
-    const batSlot=g.batIdx%lineupLen;  // which lineup spot is up
-    const myBatter=myBat?lineup[batSlot]:null;
     const newBatterStats=g.batterStats?{...g.batterStats}:{};
     // Credit AB to the correct lineup slot
     if(myBat&&newBatterStats[batSlot]){
