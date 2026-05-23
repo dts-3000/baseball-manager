@@ -218,8 +218,7 @@ export default function App(){
   }
 
   // ── TRAINING ─────────────────────────────────────────────────────────────
-  // Use a ref so applyTraining always reads fresh value even inside closures
-  const trainPtsRef = useRef(100);
+  // trainPtsRef declared above with other refs
 
   function applyTraining(id,focus,pts){
     if(trainPtsRef.current<pts){toast(`Only ${trainPtsRef.current} training pts left this week.`);return;}
